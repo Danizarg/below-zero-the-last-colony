@@ -235,9 +235,16 @@ function TestRunner.runAll(options)
 	return summary
 end
 
---[[ Load every ModuleScript whose name ends in `.spec` under `container` and
-     hand each one a suite named after it. ]]
-function TestRunner.loadSpecs(container)
+--[[
+	Load every ModuleScript whose name ends in `.spec` under `container` and
+	hand each one a suite named after it.
+
+	@param context any|nil  passed to each spec as its second argument. The
+	                        integration runner uses it to supply a factory that
+	                        builds a fresh simulated server per test; the plain
+	                        unit specs ignore it.
+]]
+function TestRunner.loadSpecs(container, context)
 	local loaded = 0
 	for _, child in ipairs(container:GetChildren()) do
 		if child:IsA("ModuleScript") and string.match(child.Name, "%.spec$") then
@@ -246,10 +253,10 @@ function TestRunner.loadSpecs(container)
 			if not ok then
 				warn(("[BZ/Test] could not load %s: %s"):format(child.Name, tostring(factory)))
 			elseif type(factory) ~= "function" then
-				warn(("[BZ/Test] %s should return a function(suite)"):format(child.Name))
+				warn(("[BZ/Test] %s should return a function(suite, context)"):format(child.Name))
 			else
 				local suite = TestRunner.suite(name)
-				local built, err = pcall(factory, suite)
+				local built, err = pcall(factory, suite, context)
 				if not built then
 					warn(("[BZ/Test] %s failed while defining tests: %s"):format(child.Name, tostring(err)))
 				else

@@ -336,7 +336,7 @@ return function(suite, context)
 
 	suite:test("a monster attack damages the player through the survival clamp", function(expect)
 		local run = startRun("medium")
-		local monsterId, monster = run.findMonster(run.Enums.Monster.CaveCrawler)
+		local _, monster = run.findMonster(run.Enums.Monster.CaveCrawler)
 		run.engage(monster)
 
 		local humanoid = run.player.Character:FindFirstChildOfClass("Humanoid")

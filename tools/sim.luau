@@ -1087,6 +1087,13 @@ function sim.new(options)
 		local humanoid = newInstance("Humanoid")
 		humanoid.Parent = character
 
+		--[[ Parented to workspace, as the engine does. This matters: code that
+		     guards on `character.Parent` before acting — `_die`'s delayed
+		     corpse destroy, for one — would silently never run against an
+		     unparented character, and the test would pass for the wrong
+		     reason. ]]
+		character.Parent = workspaceInstance
+
 		return character
 	end
 
@@ -1135,16 +1142,71 @@ function sim.new(options)
 
 	-- ── Driving ────────────────────────────────────────────────────────────
 
+	--[[
+		Run a handler to completion, even if it yields.
+
+		Several handlers call task.wait — ExpeditionService reloads a character
+		on rescue and then waits a tick for the CharacterAdded handlers. Calling
+		those directly from the main thread would throw "attempt to yield from
+		outside a coroutine", so the handler runs INSIDE a coroutine and virtual
+		time is pumped until it finishes.
+
+		Time therefore advances a little during an invoke, which is also what
+		happens in the real game.
+	]]
+	local function runToCompletion(label, handler, player, payload)
+		local result
+		local finished = false
+		local failure
+
+		local thread = coroutine.create(function()
+			result = handler(player, payload)
+			finished = true
+		end)
+
+		local ok, err = coroutine.resume(thread)
+		if not ok then
+			failure = err
+			finished = true
+		end
+
+		local guard = 0
+		while not finished do
+			guard += 1
+			if guard > 2000 then
+				failure = "handler never completed; it is waiting on something the simulation never supplies"
+				break
+			end
+			scheduler.advanceTo(scheduler.now + 0.05)
+			if coroutine.status(thread) == "dead" and not finished then
+				--[[ The coroutine died without setting `finished`, which means
+				     it errored after its first yield. ]]
+				failure = failure or "handler died after yielding"
+				break
+			end
+		end
+
+		scheduler.drainDeferred()
+
+		if failure then
+			sim._onError(("%s: %s"):format(label, tostring(failure)))
+			return nil, failure
+		end
+
+		return result, nil
+	end
+
 	function server.invoke(player, route, payload)
 		local handler = requestHandlers[route]
 		if not handler then
 			error(("[sim] no handler registered for request route %q"):format(tostring(route)), 2)
 		end
-		local ok, result = pcall(handler, player, payload)
-		scheduler.drainDeferred()
-		if not ok then
-			sim._onError(("invoke %s: %s"):format(tostring(route), tostring(result)))
-			return { ok = false, reason = "sim_error", error = tostring(result) }
+
+		local result, failure = runToCompletion("invoke " .. tostring(route), handler, player, payload)
+		if failure then
+			--[[ A distinctive reason, so a test asserting a SPECIFIC refusal
+			     cannot be satisfied by a crash. assertNoErrors catches it too. ]]
+			return { ok = false, reason = "sim_error", error = tostring(failure) }
 		end
 		return result == nil and { ok = true } or result
 	end
@@ -1154,11 +1216,7 @@ function sim.new(options)
 		if not handler then
 			error(("[sim] no handler registered for event route %q"):format(tostring(route)), 2)
 		end
-		local ok, err = pcall(handler, player, payload)
-		scheduler.drainDeferred()
-		if not ok then
-			sim._onError(("send %s: %s"):format(tostring(route), tostring(err)))
-		end
+		runToCompletion("send " .. tostring(route), handler, player, payload)
 	end
 
 	function server.hasRoute(route)

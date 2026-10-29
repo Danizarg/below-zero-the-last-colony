@@ -412,10 +412,7 @@ function harness.newLoader(options)
 			error(("[harness] string require(%q) is not used by project code"):format(target), 2)
 		end
 		if type(target) ~= "table" or not rawget(target, "_filePath") then
-			error(
-				("[harness] require() needs a module node; got %s"):format(tostring(target)),
-				2
-			)
+			error(("[harness] require() needs a module node; got %s"):format(tostring(target)), 2)
 		end
 
 		if cache[target] ~= nil then

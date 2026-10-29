@@ -54,6 +54,10 @@ ExpeditionService.__index = ExpeditionService
 local CLOCK_TICK = 0.5
 local SHIFT_WARNINGS = { 30, 10 }
 
+--[[ How long a wiped party is held open so a dead player can still take their
+     free rescue. Long enough to read the death screen and decide. ]]
+local RESCUE_GRACE_SECONDS = 25
+
 function ExpeditionService.new()
 	local self = setmetatable({}, ExpeditionService)
 	self._sessions = {} -- [sessionId] = session
@@ -116,6 +120,12 @@ function ExpeditionService:livingPlayersIn(session)
 		end
 	end
 	return out
+end
+
+--[[ How long a wiped party is held open for a rescue. Read by SurvivalService
+     so the death screen can tell the player how long they actually have. ]]
+function ExpeditionService:rescueWindowSeconds()
+	return RESCUE_GRACE_SECONDS
 end
 
 function ExpeditionService:rescuesRemaining(player)
@@ -491,6 +501,7 @@ function ExpeditionService:_tick()
 				break
 			end
 		end
+
 		if not anyActive then
 			local allExtracted = true
 			for _, member in pairs(session.members) do
@@ -499,6 +510,39 @@ function ExpeditionService:_tick()
 					break
 				end
 			end
+
+			--[[ Hold the session open briefly if anyone can still rescue
+			     themselves.
+
+			     Without this a SOLO player can never use their free rescue at
+			     all: they die, this tick sees nobody active and ends the run
+			     within half a second, and the rescue button the death screen
+			     just offered them refuses with "wrong zone". In a party the
+			     session stayed open because teammates were alive, so the bug
+			     only ever hit people playing alone — which is most of them.
+
+			     The grace window is also what the death screen's countdown is
+			     for, so it has to be long enough to read and click. ]]
+			local anyRescuable = false
+			if not allExtracted then
+				for userId, member in pairs(session.members) do
+					if member.state == Enums.MemberState.Dead then
+						local player = Players:GetPlayerByUserId(userId)
+						if player and self:rescuesRemaining(player) > 0 then
+							anyRescuable = true
+							break
+						end
+					end
+				end
+			end
+
+			if anyRescuable then
+				session.rescueWindowStartedAt = session.rescueWindowStartedAt or os.clock()
+				if os.clock() - session.rescueWindowStartedAt < RESCUE_GRACE_SECONDS then
+					continue
+				end
+			end
+
 			self:endSession(session, allExtracted and "extracted" or "wiped")
 		end
 	end
@@ -654,24 +698,32 @@ function ExpeditionService:requestRescue(player, paid)
 
 	member.state = Enums.MemberState.Alive
 	member.rescued = true
+	--[[ Someone is active again, so the wiped-party grace window is spent and
+	     should start fresh if the party goes down a second time. ]]
+	session.rescueWindowStartedAt = nil
 
 	--[[ A rescue always gets a FRESH body.
 
 	     `_die` zeroes the Humanoid and only destroys the character two seconds
 	     later, so for that window `player.Character` is still the corpse — a
 	     Humanoid at zero health. Reusing it would revive the player into a dead
-	     body, and the pending destroy would then remove it from under them,
-	     leaving an Alive member with no character for the rest of the run.
+	     body, and the pending destroy would then remove it from under them.
 
-	     Destroying it here also makes that pending task.delay a no-op, because
-	     it checks `character.Parent` before acting. ]]
+	     Note that destroying a character does NOT clear `player.Character`; the
+	     property keeps pointing at the destroyed model. So the reload cannot be
+	     gated on `player.Character` being nil — it has to be gated on the body
+	     being unusable, which is what `needsBody` is for. ]]
 	local existing = player.Character
 	local existingHumanoid = existing and existing:FindFirstChildOfClass("Humanoid")
-	if existing and (not existingHumanoid or existingHumanoid.Health <= 0) then
-		existing:Destroy()
-	end
+	local needsBody = not existing
+		or not existing.Parent
+		or not existingHumanoid
+		or existingHumanoid.Health <= 0
 
-	if not player.Character then
+	if needsBody then
+		if existing then
+			existing:Destroy()
+		end
 		local ok, err = pcall(function()
 			player:LoadCharacter()
 		end)

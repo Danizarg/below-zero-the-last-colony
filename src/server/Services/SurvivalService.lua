@@ -375,6 +375,10 @@ function SurvivalService:_die(player)
 		cause = cause,
 		damageSummary = self:damageSummary(player),
 		freeRescuesRemaining = rescuesLeft,
+		--[[ If this death wiped the party, the run is held open only this long
+		     for a rescue. Saying so is the difference between a decision and a
+		     button that stops working for no visible reason. ]]
+		rescueWindowSeconds = self.context.ExpeditionService:rescueWindowSeconds(),
 	})
 
 	if session then

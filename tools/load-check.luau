@@ -96,7 +96,13 @@ for _, treeName in ipairs(ORDER) do
 end
 
 print("")
-print(("───── %d loaded, %d failed, %d expected-engine ─────"):format(passed, failed, expected))
+print(
+	("───── %d loaded, %d failed, %d expected-engine ─────"):format(
+		passed,
+		failed,
+		expected
+	)
+)
 
 if failed > 0 then
 	print("")

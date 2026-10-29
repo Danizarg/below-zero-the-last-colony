@@ -947,7 +947,17 @@ function ExpeditionHUD:refreshSpectate()
 	if free > 0 then
 		UIKit.setEnabled(self.rescueButton, true)
 		self.rescueButton.Text = ("Use free rescue (%d left)"):format(free)
-		self.rescueNote.Text = "A free rescue puts you back at the tunnel mouth with your bag."
+		--[[ The window matters: if this death wiped the party the run is only
+		     held open briefly, and a button that quietly stops working is worse
+		     than one that told you it would. ]]
+		if info.rescueWindowSeconds then
+			self.rescueNote.Text = (
+				"A free rescue puts you back at the tunnel mouth with your bag. "
+				.. "Decide within about %d seconds."
+			):format(math.floor(info.rescueWindowSeconds))
+		else
+			self.rescueNote.Text = "A free rescue puts you back at the tunnel mouth with your bag."
+		end
 	else
 		UIKit.setEnabled(self.rescueButton, false, "No free rescue left")
 		self.rescueNote.Text = "Your free rescue is spent. You will return to the colony when the expedition ends, "

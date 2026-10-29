@@ -216,6 +216,10 @@ ResourceConfig.Nodes = {
 			Enums.RoomKind.CorridorCurve,
 			Enums.RoomKind.DeadEnd,
 			Enums.RoomKind.Entrance,
+			--[[ Fungus thrives in a nest: damp, warm and undisturbed. This also
+			     gives a nest something to harvest, so it is a room worth risking
+			     rather than pure hazard. ]]
+			Enums.RoomKind.MonsterNest,
 		},
 	},
 	iron_seam = {
@@ -308,7 +312,16 @@ ResourceConfig.Nodes = {
 		size = Vector3.new(6, 4, 6),
 		color = Color3.fromRGB(176, 158, 120),
 		material = Enum.Material.Sandstone,
-		rooms = { Enums.RoomKind.AncientVault, Enums.RoomKind.PuzzleRoom, Enums.RoomKind.ExtractionChamber },
+		rooms = {
+			Enums.RoomKind.AncientVault,
+			Enums.RoomKind.PuzzleRoom,
+			Enums.RoomKind.ExtractionChamber,
+			--[[ What is left of whoever came through here before you. A nest
+			     holding relics is the risk/reward case the room needs: with
+			     fungal_cluster weighted 9 against this at 4, roughly a third of
+			     nests are worth the fight. ]]
+			Enums.RoomKind.MonsterNest,
+		},
 	},
 }
 

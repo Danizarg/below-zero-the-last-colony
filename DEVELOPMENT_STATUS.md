@@ -1,6 +1,6 @@
 # DEVELOPMENT STATUS
 
-**Version 0.1.0-mvp** · 76 Lua files · ~29,350 lines
+**Version 0.1.0-mvp** · 76 Lua files, ~29,650 lines · 3 Lune tools, ~650 lines
 
 ## How to read this
 
@@ -11,24 +11,45 @@
 | 🏗 **Architected** | Config, data model and call sites exist; behaviour deliberately refuses rather than pretending |
 | ❌ **Not started** | No code |
 
-**Nothing in this repository has been executed.** There is no Roblox Studio,
-Rojo, Lune or Luau binary on the machine it was written on. "Implemented" means
-the code is written and reviewed, not that it has been seen to work.
-
 ### What has actually been verified
 
-| Check | Result |
-|---|---|
-| Structural check across all 76 Lua files (balanced `end`/block keywords, balanced brackets, malformed table entries) | **0 problems** |
-| `default.project.json` parses as JSON | **pass** |
-| Luau syntax via the real compiler | **not run** — no binary available |
-| `selene` / `stylua` | **not run** |
-| Test suite (5 specs, 129 tests) | **not run** — needs the Roblox engine; runs automatically on Play in Studio |
-| Anything requiring the engine | **not run** |
+The toolchain is installed, so these all genuinely ran:
 
-The test suite (129 tests across 5 spec files) is written and wired. It is the first thing to run — see
-[SETUP.md](SETUP.md) §4. Until it has run, treat every ✅ below as "written and
-reviewed" rather than "known good".
+| Check | Command | Result |
+|---|---|---|
+| Rojo builds the place file | `rojo build -o build/BelowZero.rbxlx` | **pass** — 991 KB. Rojo validates every `$properties` name and type against its reflection database, so the Lighting, Players and Workspace properties are all real |
+| Luau parses, via a real parser | `selene src` | **0 parse errors** across all 76 files |
+| Static analysis | `selene src` | **0 errors, 0 warnings** |
+| Formatting | `stylua --check src` | **clean** (44 files were reformatted to get there) |
+| Spec suite, headless | `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
+| Every module loads | `lune run tools/load-check` | **67 of 67 ModuleScripts load** |
+| Structural check | `node` heuristic over block/bracket balance | **0 problems** |
+
+**What that does and does not mean.** The pure logic is genuinely tested: the
+cave generator and the night maze shift are swept across 120 seeds × 3
+difficulties, asserting door symmetry, full reachability, that no occupied room
+is ever sealed, and that objective rooms never move. Inventory atomicity, the
+RNG's determinism, plot geometry and every cross-config reference are covered
+too. The load check proves all 67 modules' top-level code runs, which is the
+failure mode that would otherwise take the whole server down at startup.
+
+**What is still unverified is engine behaviour.** Nothing here has run inside
+Roblox. Instances being assembled correctly, UI actually rendering and laying
+out, monster pathfinding, DataStore persistence and multiplayer are all
+untested — that is what the manual checklist in [SETUP.md](SETUP.md) §5 is for.
+So for anything marked ✅ below that touches the engine, read it as "written,
+reviewed, and it loads" rather than "seen working".
+
+Two real bugs were caught by these checks rather than by reading the code,
+which is the argument for having them:
+
+- `MonsterBase:onDamaged` accepted a damage amount and ignored it, so bare
+  hands drove the Stalker off exactly as well as an Iron Blade — in the one
+  encounter where running is the intended answer. (Found by Selene's
+  unused-variable warning.)
+- `ResourceConfig.NodesPerRoom` allocated a resource node to Monster Nests, but
+  no node definition listed that room, so nests would have silently spawned
+  nothing. (Found by `ConfigIntegrity.spec`.)
 
 ---
 
@@ -70,7 +91,7 @@ is the one thing this document cannot claim.
 | System | Status | Notes |
 |---|---|---|
 | Rojo project | ✅ | `default.project.json`, lighting/sound/physics configured |
-| Toolchain manifest | 🟡 | `rokit.toml` exists; **versions unverified** — no network access to check them |
+| Toolchain manifest | ✅ | `rokit install` installed all four tools at exactly the pinned versions (Rojo 7.4.4, StyLua 0.20.0, Selene 0.27.1, Lune 0.8.9) |
 | Shared config | ✅ | 11 config modules, all data, no behaviour |
 | Enums | ✅ | Persisted string ids with a "never rename without a migration" rule |
 | Networking | ✅ | One router, 3 remotes, per-route rate limits, payload sanitising |
@@ -150,14 +171,15 @@ is the one thing this document cannot claim.
 
 | System | Status | Notes |
 |---|---|---|
-| Test harness | ✅ | Self-contained; no external dependency |
+| Test harness | ✅ | Self-contained; no external dependency. Runs in Studio on Play, or headlessly via `lune run tools/run-tests` |
 | CaveLayout spec | ✅ | 23 tests, sweeping 120 seeds × 3 difficulties |
 | ConfigIntegrity spec | ✅ | 56 tests over cross-config references and design invariants |
 | Inventory spec | ✅ | 21 tests: atomicity, capacity, loss rules, determinism |
 | Rng spec | ✅ | 15 tests: determinism, ranges, weighting, shuffle correctness |
 | PlotGrid spec | ✅ | 14 tests: round-trips, snapping, bounds, overlap |
-| Server integration tests | ❌ | Nothing tests a full expedition end to end. Manual checklist in SETUP.md §5 covers it |
-| Headless test run | ❌ | Specs use `game:GetService`, so they need Studio. A Lune shim is possible but not written |
+| Module load check | ✅ | `lune run tools/load-check` requires all 67 ModuleScripts. Selene proves code parses; this proves it loads, which is the failure that takes a server down at startup |
+| Server integration tests | ❌ | Nothing drives a full expedition end to end. The harness could grow into it — the services load, so stubbing Heartbeat and stepping the clock is the next increment. Manual checklist in SETUP.md §5 covers it today |
+| Headless test run | ✅ | `tools/harness.luau` builds a fake instance tree over the real files and supplies the datatypes Lune lacks. `lune run tools/run-tests` runs all 129 in 0.7s; exits non-zero, so it can gate a commit or CI |
 
 ---
 
@@ -190,7 +212,7 @@ is the one thing this document cannot claim.
 | Cosmetics are owned and equipped but never rendered | The shop grants nothing visible | `MonetizationService` |
 | `Watchtower.shiftWarningBonus` is summed but never read | Config promises an effect that does nothing | `BuildingConfig`, `ExpeditionService` |
 | Migration chain is empty | The migration path has never run on real data | `Data/Migrations.lua` |
-| Toolchain versions in `rokit.toml` unverified | `rokit install` may fail on a bad pin | `rokit.toml` |
+| Rokit needs a new shell after install | Its shims land in `~/.rokit/bin`, which an already-open terminal does not see | `rokit.toml` |
 | No rate limit on `ProximityPrompt` spam beyond the route budget | The route budgets cover it, but prompt-triggered requests are the most spammable surface | `Util/Net.lua` |
 
 ---
@@ -199,17 +221,31 @@ is the one thing this document cannot claim.
 
 In the order I would actually do it.
 
-### 1. Run the tests, then play it
+### 1. Play it
 
-Nothing below matters until the suite has run and the loop has been played once
-end to end. Expect to spend the first session fixing things this document calls
-✅. The most likely failure sites, in order:
+The static side is done: the suite passes, every module loads, Selene is clean
+and Rojo builds. What is left is everything the engine owns, and the only way to
+find those bugs is to press Play. Expect to spend the first session fixing
+things this document calls ✅.
 
-1. Client UI construction — the most code with the least verification.
-2. `MonsterBase` rig assembly — custom Humanoid rigs are fussy about
-   `HumanoidRootPart`, `HipHeight` and welds.
-3. Service start-up ordering around `profileLoaded`.
-4. `BuildingBuilder` wedge orientation — the roof pitch maths is unverified.
+The most likely failure sites, in order. Note that the load check already ruled
+out the cheapest class of error in all of them (bad require paths, nil indexes
+while building tables), so what remains is genuinely runtime behaviour:
+
+1. **Client UI layout.** The most code, and the hardest to verify without
+   looking at it. Every panel builds its tree correctly in the sense that it
+   loads and runs; whether `UIKit.panel`'s header seam, the `AutomaticSize`
+   chains and the scrolling frames actually lay out as intended is unknown.
+2. **`MonsterBase` rig assembly.** Custom Humanoid rigs are fussy about
+   `HumanoidRootPart` naming, `HipHeight` and weld order. If monsters spawn
+   face-down or refuse to move, it is here.
+3. **`BuildingBuilder` roof wedges.** The pitch maths composes three rotations
+   and is pure guesswork until seen.
+4. **Service start-up ordering around `profileLoaded`.** Deliberately deferred
+   in `DataService`, but only reasoning says that is sufficient.
+5. **The maze shift's geometry rebuild.** The layout half is proven by tests;
+   that `RoomLibrary.buildShell` tears down exactly the right parts and leaves
+   the floor is not.
 
 ### 2. Draw the minimap
 

@@ -1,20 +1,29 @@
 # SETUP — getting BELOW ZERO running and tested
 
-Nothing in this repository has been executed. There is no Roblox Studio, Rojo,
-Lune or Luau binary on the machine it was written on, so every claim below about
-*behaviour* is a claim about code that has been read and structurally checked,
-not code that has been run. The point of this document is to get you from a
-clone to a running game in as few steps as possible, and then to tell you
-exactly what to look at.
+This gets you from a clone to a running game, and then tells you exactly what to
+look at.
 
-What **has** been verified here:
+**What has been verified**, by actually running it:
 
-- All 76 Lua files pass a structural check: balanced `end`/block keywords,
-  balanced brackets, no malformed table entries.
-- `default.project.json` is valid JSON.
+| Check | Result |
+|---|---|
+| `rojo build -o build/BelowZero.rbxlx` | pass, 991 KB |
+| `selene src` | 0 errors, 0 warnings, **0 parse errors** across 76 files |
+| `stylua --check src` | clean |
+| `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
+| `lune run tools/load-check` | **67 of 67 modules load** |
 
-What has **not** been verified: anything that needs the Roblox engine. That is
-most of it.
+**What has not been verified**: anything the Roblox engine owns. UI actually
+rendering and laying out, Instances assembling correctly, monster pathfinding,
+DataStore persistence, multiplayer. That is what §5 below is for, and it is the
+reason the checklist is 59 steps long rather than 5.
+
+If you only want to know whether the logic still holds, you do not need Studio
+at all:
+
+```bash
+lune run tools/run-tests
+```
 
 ---
 
@@ -32,12 +41,30 @@ Install [Rokit](https://github.com/rojo-rbx/rokit), then:
 rokit install
 ```
 
-That reads `rokit.toml` and installs Rojo, StyLua, Selene and Lune at pinned
-versions.
+That reads `rokit.toml` and installs Rojo 7.4.4, StyLua 0.20.0, Selene 0.27.1
+and Lune 0.8.9. Those exact pins are known good — all four install and run.
 
-> If `rokit install` complains that a pinned version does not exist, the pins in
-> `rokit.toml` were written without network access to check them. Run
-> `rokit add rojo-rbx/rojo` (and the same for the others) to take the latest.
+> **Rokit will tell you to restart your computer. You do not need to.** Its
+> shims go in `~/.rokit/bin` (`%USERPROFILE%\.rokit\bin` on Windows) and it adds
+> that to your user `PATH`. An already-open terminal does not pick up a `PATH`
+> change, which is the whole problem — so just **open a new terminal**.
+>
+> If you want it working in the terminal you already have:
+>
+> ```bash
+> set PATH=%PATH%;%USERPROFILE%\.rokit\bin
+> ```
+>
+> Or skip `PATH` entirely and call the shim directly:
+>
+> ```bash
+> "%USERPROFILE%\.rokit\bin\rojo.exe" plugin install
+> ```
+>
+> One more wrinkle: Rokit's shims resolve a tool from the nearest project
+> manifest, so run them **from the repository root**. Running `lune` from
+> somewhere else gives you `Failed to find tool 'lune' in any project manifest
+> file`.
 
 ### Option B — Aftman
 
@@ -295,18 +322,65 @@ a layout and replay it.
 
 ---
 
-## 7. Formatting and linting
+## 7. The checks you can run without Studio
+
+All four run from the repository root and are currently green. Run them before
+a commit; the Lune ones exit non-zero on failure, so they work in CI.
 
 ```bash
-stylua src
-selene src
+lune run tools/run-tests && lune run tools/load-check && selene src && stylua --check src
 ```
 
-Both configs are in the repo (`stylua.toml`, `selene.toml`). Neither has been run
-here, so expect to fix some formatting on first pass. `selene` may flag unused
-function arguments in a few interface-shaped functions (for example
-`ExpeditionService:onMemberDied`, which takes a player it does not currently
-need); those are deliberate.
+### `lune run tools/run-tests`
+
+All 129 specs, headless, in under a second.
+
+```
+[BZ/Test] PASS  CaveLayout             23 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  ConfigIntegrity        56 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Inventory              21 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  PlotGrid               14 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Rng                    15 passed, 0 failed, 0 skipped
+[harness] OK: 129 tests passed in 0.67s
+```
+
+This works because `src/shared` needs Roblox *datatypes* but no DataModel, and
+Lune provides the datatypes. `tools/harness.luau` builds a fake instance tree
+over the real files so each module gets a `script` and a `require` that resolve
+exactly as they would after a Rojo sync. It is the same TestRunner and the same
+specs Studio runs.
+
+### `lune run tools/load-check`
+
+Requires all 67 ModuleScripts and reports each one.
+
+Worth running separately because Selene proves code *parses*, not that it
+*loads*. A typo in a require path, a nil index while building a config table, or
+a service captured at require time that does not exist all parse perfectly and
+then fail the instant Studio touches them — and since the server bootstrap
+requires everything at startup, one of those takes the whole game down.
+
+### `selene src`
+
+0 errors, 0 warnings, 0 parse errors. Deliberately-unused parameters are
+underscore-prefixed (`_biome`, `_rng`), which is how Selene and Luau convention
+mark "intentional" — that keeps the lint at zero so a *real* unused variable is
+visible when it appears.
+
+### `stylua --check src`
+
+Clean. `stylua.toml` targets Unix line endings, and `.gitattributes` enforces LF
+in the repository, so Git and StyLua do not fight on a Windows checkout.
+
+### Rebuilding the place file
+
+```bash
+rojo build -o build/BelowZero.rbxlx
+```
+
+Useful as a check in its own right: Rojo validates every `$properties` name and
+type against its reflection database, so a typo in `default.project.json` fails
+here rather than silently doing nothing in Studio. (`build/` is gitignored.)
 
 ---
 

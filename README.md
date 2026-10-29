@@ -5,12 +5,23 @@ A cooperative underground survival and civilisation-building game for Roblox.
 Your colony is permanent. The caves are not. Every expedition is a bet that you
 can get back before the tunnels rearrange themselves around you.
 
-> **Status: playable vertical slice, never executed.** Every system described
-> below exists as code and has been structurally checked. None of it has been
-> run, because there is no Roblox Studio or Luau runtime on the machine it was
-> written on. See [SETUP.md](SETUP.md) to get it running, and
+> **Status: playable vertical slice. Logic tested, engine behaviour untested.**
+>
+> ```
+> rojo build          pass (991 KB place file)
+> selene src          0 errors, 0 warnings, 0 parse errors
+> stylua --check src  clean
+> lune run tools/run-tests    129 passed, 0 failed
+> lune run tools/load-check   67 of 67 modules load
+> ```
+>
+> The pure logic is genuinely verified — the cave generator and the night maze
+> shift are swept across 120 seeds × 3 difficulties. What has **not** run is
+> anything the Roblox engine owns: UI rendering, Instance assembly, pathfinding,
+> DataStore persistence and multiplayer. See [SETUP.md](SETUP.md) to get it into
+> Studio and a 59-step checklist for the rest, and
 > [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) for an honest feature-by-feature
-> breakdown of what is finished, partial and absent.
+> breakdown.
 
 ---
 
@@ -53,7 +64,7 @@ arranged around.
 | **UI** | One ScreenGui, layered, themed from a single token file. Main menu, colony HUD, expedition HUD, seven panels, toasts, alerts and a full-screen shift warning. Keyboard, mouse, gamepad and touch. |
 | **Persistence** | Session-locked profiles, retries with backoff, versioned migration, idempotent purchase receipts, and a read-only fallback that refuses to overwrite a profile another server owns. |
 | **Monetization** | Cosmetics only, bar one capped rescue. No gambling, no pay-to-win. Switched hard off, every product id zero, and a test that fails if that changes. |
-| **Tests** | 5 spec files, 129 tests, self-contained harness, run automatically in Studio. The cave generator and shift are swept across hundreds of seeds. |
+| **Tests** | 5 spec files, 129 tests, self-contained harness. Runs in Studio on Play, or headlessly in 0.7s via `lune run tools/run-tests`. The cave generator and shift are swept across 120 seeds × 3 difficulties. |
 
 ---
 
@@ -82,6 +93,11 @@ src/
     Controllers/       input, interaction, placement, audio, atmosphere, routes
 
   tests/               TestRunner + specs; runs in Studio on Play
+
+tools/                 Lune harnesses — no Studio required
+  harness.luau         fake instance tree over the real files
+  run-tests.luau       the 129 specs, headless, exits non-zero on failure
+  load-check.luau      requires all 67 modules to prove they load
 ```
 
 Two architectural choices do most of the work:
@@ -103,13 +119,24 @@ reads a quantity, a cost or a damage number out of a payload.
 See **[SETUP.md](SETUP.md)**. The short version:
 
 ```bash
-rokit install      # or: cargo install rojo
-rojo plugin install
-rojo serve
+rokit install
 ```
 
-Then connect from Studio's Rojo plugin and press Play. The test suite runs
+Rokit's shims land in `~/.rokit/bin`, which an already-open terminal will not
+see — **open a new terminal** rather than restarting, then:
+
+```bash
+rojo plugin install && rojo serve
+```
+
+Connect from Studio's Rojo plugin and press Play. The test suite runs
 automatically and prints the generated cave as ASCII art.
+
+To check the logic without Studio at all:
+
+```bash
+lune run tools/run-tests && lune run tools/load-check
+```
 
 ---
 

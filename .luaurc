@@ -1,0 +1,20 @@
+{
+  "languageMode": "nonstrict",
+  "lint": {
+    "*": true,
+    "LocalShadow": false,
+    "ImportUnused": true
+  },
+  "globals": [
+    "game",
+    "workspace",
+    "script",
+    "shared",
+    "plugin",
+    "settings",
+    "DebuggerManager",
+    "typeof",
+    "warn",
+    "task"
+  ]
+}

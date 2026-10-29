@@ -1,0 +1,322 @@
+# SETUP — getting BELOW ZERO running and tested
+
+Nothing in this repository has been executed. There is no Roblox Studio, Rojo,
+Lune or Luau binary on the machine it was written on, so every claim below about
+*behaviour* is a claim about code that has been read and structurally checked,
+not code that has been run. The point of this document is to get you from a
+clone to a running game in as few steps as possible, and then to tell you
+exactly what to look at.
+
+What **has** been verified here:
+
+- All 76 Lua files pass a structural check: balanced `end`/block keywords,
+  balanced brackets, no malformed table entries.
+- `default.project.json` is valid JSON.
+
+What has **not** been verified: anything that needs the Roblox engine. That is
+most of it.
+
+---
+
+## 1. Install the toolchain
+
+You need two things: the **Rojo CLI** (to turn `src/` into something Studio can
+open) and the **Rojo Studio plugin** (to receive the sync). Pick one install
+route.
+
+### Option A — Rokit (recommended; `rokit.toml` is already in the repo)
+
+Install [Rokit](https://github.com/rojo-rbx/rokit), then:
+
+```bash
+rokit install
+```
+
+That reads `rokit.toml` and installs Rojo, StyLua, Selene and Lune at pinned
+versions.
+
+> If `rokit install` complains that a pinned version does not exist, the pins in
+> `rokit.toml` were written without network access to check them. Run
+> `rokit add rojo-rbx/rojo` (and the same for the others) to take the latest.
+
+### Option B — Aftman
+
+Aftman reads the same `[tools]` table. Copy `rokit.toml` to `aftman.toml` and run
+`aftman install`.
+
+### Option C — Cargo
+
+```bash
+cargo install rojo
+```
+
+### Option D — Prebuilt binary
+
+Download `rojo.exe` from the [Rojo releases
+page](https://github.com/rojo-rbx/rojo/releases) and put it on your `PATH`.
+
+### Then install the Studio plugin
+
+```bash
+rojo plugin install
+```
+
+If that subcommand is unavailable in your version, install **Rojo** from the
+Roblox Creator Store inside Studio instead (Toolbox → Creator Store → search
+"Rojo"). Either way you want the Rojo button to appear in Studio's Plugins tab.
+
+---
+
+## 2. Get it into Studio
+
+There are two ways. The first is better for development; the second is faster for
+a single look.
+
+### Live sync (recommended)
+
+```bash
+rojo serve
+```
+
+Then in Studio: **new baseplate → Plugins tab → Rojo → Connect**. The tree
+appears immediately and re-syncs on every file save.
+
+### Build a place file
+
+```bash
+rojo build -o BelowZero.rbxlx
+```
+
+Open `BelowZero.rbxlx` in Studio. No live reload, but nothing to keep running.
+
+### What you should see in the Explorer
+
+```
+ReplicatedStorage
+  BelowZero/              Config, Data, Lib, Util, Enums, Routes
+ServerScriptService
+  BelowZeroServer         (a Script, with Services/World/AI beneath it)
+  BelowZeroTests          (TestRunner + specs + RunTests)
+StarterPlayer
+  StarterPlayerScripts
+    BelowZeroClient       (a LocalScript, with UI/Controllers beneath it)
+```
+
+If `BelowZeroServer` is a Folder rather than a Script, the `init.server.lua` file
+did not sync — check you opened the project from the repository root.
+
+---
+
+## 3. Turn on DataStores (do this before testing persistence)
+
+**Game Settings → Security → Enable Studio Access to API Services → Save.**
+
+Without it, `DataService` detects the failure, falls back to an **in-memory**
+store, and says so once in the Output:
+
+```
+[BZ/DataService] WARN falling back to IN-MEMORY profiles; nothing will persist across sessions.
+[BZ/DataService] WARN in Studio, enable Game Settings > Security > Enable Studio Access to API Services to test real saving
+```
+
+The game is fully playable in that mode — you just will not keep your colony
+between sessions. That is the correct behaviour, not a bug, but it does mean
+**persistence is the one feature you cannot test until you flip this switch.**
+
+---
+
+## 4. Press Play
+
+Hit **Play** (F5). Expected Output, roughly in this order:
+
+```
+[BZ/Net] server transport ready
+[BZ/DataService] ready (jobId=..., store=BelowZero_Profiles_v1)
+[BZ/ColonyService] colony cavern built with 9 plots
+...
+[BZ/Bootstrap] started 16 services, N request routes, M event routes in 0.XXs
+[BZ/Test] running 5 spec files
+[BZ/Test] PASS  CaveLayout             23 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  ConfigIntegrity        ...
+[BZ/Test] ───── N passed, 0 failed, 0 skipped in X.XXs ─────
+[BZ/Test] ✓ all tests passed
+```
+
+**The tests run automatically** in Studio whenever `GameConfig.Debug` is true.
+They are the fastest way to find out whether anything is broken, and they are
+where you should look first if the game misbehaves. They never run on a published
+server.
+
+To re-run them without restarting, open the Command Bar during a running session:
+
+```lua
+require(game.ServerScriptService.BelowZeroTests.TestRunner).runAll()
+```
+
+You will also see the generated cave printed as ASCII art, which is the quickest
+way to sanity-check a seed:
+
+```
+[BZ/CaveBuilder] layout seed 123456
+   │
+  ─┼──M
+   │  │
+   E  .
+```
+
+`E` entrance · `V` ancient vault · `X` extraction chamber · `P` puzzle room ·
+`M` mining · `R` resource · `N` nest · `┼` junction · `.` dead end · `─`/`┐`
+corridors.
+
+---
+
+## 5. Testing checklist
+
+Work down this list. Each item says what to do and what should happen. Anything
+marked **⚠** is a known gap, documented in `DEVELOPMENT_STATUS.md`.
+
+### Colony (first 5 minutes)
+
+| # | Do | Expect |
+|---|---|---|
+| 1 | Play solo | You spawn on a lit plot in a dark cavern, with a Town Hall already built |
+| 2 | Look at the HUD | Colony name top-left, resource strip top-centre, a "NEXT" objective top-right |
+| 3 | Press `B` | Construction panel opens, listing Shelter and Fungal Farm as buildable |
+| 4 | Pick Shelter, move the mouse | A green translucent footprint follows the cursor, snapped to the grid |
+| 5 | Move it off your plot | The footprint turns red and the banner says "outside your plot" |
+| 6 | Press `R` | The footprint rotates; the amber facing marker moves |
+| 7 | Click on a valid spot | A shelter is built, resources drop, the HUD updates |
+| 8 | Try to place a second building overlapping the first | Refused, red footprint, "overlaps Shelter" |
+| 9 | Press `C` → Colonists | Three unassigned colonists listed |
+| 10 | Build a Farm, then assign a colonist as Farmer | Job button highlights; after ~10s mushrooms start appearing in storage |
+| 11 | Wait ~30s watching the resource strip | Counts rise from NPC production |
+| 12 | Press `C` → Crafting | Recipes listed; Stone Pick greyed out with "Needs a workshop" |
+| 13 | Upgrade the Town Hall to level 2 (`B` → Manage) | Workshop unlocks; the Town Hall visibly gains a storey and a brighter beacon |
+| 14 | Build a Workshop, craft a Stone Pick | Tool appears in Inventory (`Tab`) and auto-equips |
+
+### Expedition (the main loop)
+
+| # | Do | Expect |
+|---|---|---|
+| 15 | Walk to the cave entrance arch and press `E` | Expedition panel opens |
+| 16 | Read the difficulty cards | Each states run length, room count, shift cadence, revive window and **how much of your haul you keep if you die** |
+| 17 | Pick Easy, press ENTER THE CAVES | Screen content swaps to the expedition HUD; you are in a lit tunnel mouth |
+| 18 | Check the Output | `[BZ/ExpeditionService] session 1 started: easy, 1 players, seed N, 10 rooms` plus the ASCII map |
+| 19 | Look at the HUD | Phase clock top-centre, HP/ST/FD bottom-left, bag and tool bottom-right, objectives right |
+| 20 | Walk into the next room | The objectives card gains "Explored 2 / 10 rooms" |
+| 21 | Find a stone outcrop, press `E` repeatedly | `+3` toasts, stamina drains, the node fades out when empty |
+| 22 | Try to harvest an iron seam with bare hands | Refused: "You need a Stone Pick for this" |
+| 23 | Hold `Shift` and run | Stamina drains faster; releasing it recovers |
+| 24 | Find a Cave Crawler and click it | It winds up visibly before hitting; your HP drops and the screen edges flash red |
+| 25 | Keep fighting until it dies | Kill toast, fiber may drop into your bag |
+| 26 | Press `Q` | Your role ability fires (Runner lights a route out; Guardian/Medic apply an aura) |
+| 27 | Let the prep phase end | Phase changes to DAY, then DUSK with a full-screen **"WARNING: THE CAVES ARE SHIFTING / RETURN TO THE COLONY"** |
+| 28 | Watch the shift countdown | A "SHIFT IN 0:30" line appears, turning red under 30s, with warnings at 30s and 10s |
+| 29 | Stay put through a shift | Screen shakes, a cold flash, **"THE CAVES HAVE SHIFTED"**, and walls around you have changed — but you are still standing on solid floor |
+| 30 | Try to leave the room you were in | There is always a way out (the generator guarantees it; the tests prove it) |
+| 31 | Find the Ancient Vault (`V` on the ASCII map) | Key on a plinth, plus the First Gate |
+| 32 | Take the key | Party-wide alert, key enters your bag |
+| 33 | Examine the gate | A dialog states keys required vs held, what opening it unlocks, and that your colony is **not** reset |
+| 34 | Open it with a key | "THE FIRST SEAL OPENS", the slab sinks, gate stages increments |
+| 35 | Find a puzzle room, touch the pillars in the wrong order | Runes dim, "Wrong order" — no other penalty |
+| 36 | Solve it | Relics awarded, and a key's location is revealed on your map |
+| 37 | Return to the tunnel mouth and hold `E` | Extraction: your bag empties into colony storage, results screen appears |
+| 38 | Read the results screen | Outcome, resources brought home, XP breakdown, level, role mastery |
+| 39 | Check storage back home | The haul is there, permanently |
+
+### Failure paths (these matter most)
+
+| # | Do | Expect |
+|---|---|---|
+| 40 | Let a Crawler reduce you to zero HP | You go **down**, not dead: red overlay, a counting-down timer, "Hold on" |
+| 41 | Let the timer expire | "YOU DIED" with the **actual cause** listed ("Killed by Cave Crawler (36)"), and a free-rescue button |
+| 42 | Use the free rescue | You respawn at the tunnel mouth with your bag intact |
+| 43 | Die again | The rescue button is greyed out with an explanation; you are told you will still get part of your haul |
+| 44 | Wait for night to end | Results screen: "CAUGHT BY THE SHIFT", partial recovery, **keys kept in full** |
+| 45 | Check storage | Partial haul deposited; ancient keys all present |
+| 46 | Fall a long way on purpose | Fall damage scaled to height, and it can down you but **never** kill you outright |
+| 47 | Let hunger run out (Hard, long run) | Slow HP drain with a visible warning, not a sudden death |
+
+### Multiplayer
+
+**Test tab → Clients and Servers → 2 Players → Start.**
+
+| # | Do | Expect |
+|---|---|---|
+| 48 | Look at both clients | Two adjacent claimed plots, each with its own nameplate and warmer ground |
+| 49 | Walk player 1 onto player 2's plot and press `B` | You can open the panel but every placement is refused: it is not your colony |
+| 50 | Player 1: `X` → note the party code. Player 2: `X` → Open Parties → join | Both see a 2-person roster with roles |
+| 51 | Player 2 toggles ready, player 1 starts | Both enter the same cave, team card appears on the HUD |
+| 52 | Separate, then have one player go down | The other sees "X IS DOWN" with a countdown |
+| 53 | Walk over and hold `E` on them | A server-channelled revive; walking away mid-channel cancels it with "Revive interrupted" |
+| 54 | Play a Medic and stand near a downed ally | Their timer **stops**, and their overlay says "Someone is stabilising you" |
+| 55 | Both harvest the same room | Each gets their own drops; there is no shared loot pool to race for |
+| 56 | One extracts, the other stays | The leaver gets their results; the other keeps playing until night ends |
+
+### Persistence (needs DataStores on — step 3)
+
+| # | Do | Expect |
+|---|---|---|
+| 57 | Build things, then stop the session | `[BZ/DataService] saved and released <name>` |
+| 58 | Play again | Your buildings, colonists, storage, level and keys are all back |
+| 59 | Start a session, then start a **second** Studio session with the same account | The second gets `could not acquire the profile lock ... starting a READ-ONLY session`, a red warning in the HUD, and writes nothing |
+
+---
+
+## 6. Useful knobs while testing
+
+All in [`src/shared/Config/GameConfig.lua`](src/shared/Config/GameConfig.lua):
+
+| Setting | Why you would change it |
+|---|---|
+| `Debug = false` | Silences `[BZ/...]` logging **and** stops the test suite running |
+| `MvpContentOnly = false` | Unlocks the three architected roles and five architected buildings — they are **not implemented**, so expect `NotImplemented` refusals |
+| `UseDataStore = false` | Forces in-memory saves without touching Game Settings |
+| `TransportMode` | `"local"` is the only implemented mode; `"teleport"` refuses to start with a clear message |
+
+To shorten a run while testing the shift, edit the Easy or Medium
+`phaseDurations` in
+[`src/shared/Config/DifficultyConfig.lua`](src/shared/Config/DifficultyConfig.lua)
+— e.g. `{ prep = 10, day = 20, dusk = 15, night = 60 }` gets you to a maze shift
+in under a minute.
+
+To replay an exact cave, note the seed from the Output or the results screen and
+pass it back. While `Debug` is true the client may supply a seed:
+
+```lua
+-- Studio Command Bar, client context
+local Routes = require(game.ReplicatedStorage.BelowZero.Routes)
+local Net = require(game.ReplicatedStorage.BelowZero.Util.Net)
+Net.request(Routes.Request.StartExpedition, { difficultyId = "medium", seed = 123456 })
+```
+
+Client-supplied seeds are ignored when `Debug` is false, so a player cannot scout
+a layout and replay it.
+
+---
+
+## 7. Formatting and linting
+
+```bash
+stylua src
+selene src
+```
+
+Both configs are in the repo (`stylua.toml`, `selene.toml`). Neither has been run
+here, so expect to fix some formatting on first pass. `selene` may flag unused
+function arguments in a few interface-shaped functions (for example
+`ExpeditionService:onMemberDied`, which takes a player it does not currently
+need); those are deliberate.
+
+---
+
+## 8. If something goes wrong
+
+| Symptom | Likely cause |
+|---|---|
+| Nothing happens, no `[BZ/...]` output | `init.server.lua` did not sync; `BelowZeroServer` is a Folder instead of a Script |
+| `[BZ/Net] remote folder never appeared` on the client | The server bootstrap errored. Scroll up for the first `FAULT` line |
+| Characters never spawn | `Players.CharacterAutoLoads` is false by design; if `ColonyService` failed to claim a plot it will not call `LoadCharacter`. Look for `no free colony plot` |
+| Test failures mentioning a seed | Reproduce it directly: `CaveLayout.generate({ seed = <n>, ... })` and `CaveLayout.render(layout)` |
+| Shop products all say "Purchases are off in this build" | Correct. `GameConfig.Monetization.Enabled` is `false` and every product id is `0` |
+| Everything is silent | Correct. No sound asset IDs ship with this project; see the `[BZ/Audio]` startup line |

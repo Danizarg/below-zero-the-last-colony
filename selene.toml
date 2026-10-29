@@ -1,0 +1,8 @@
+std = "roblox"
+
+[rules]
+# Deterministic world building intentionally reuses locals across scoped blocks.
+shadowing = "allow"
+# Config tables are large and read-only by design.
+unused_variable = "warn"
+multiple_statements = "allow"

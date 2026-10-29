@@ -1,0 +1,33 @@
+# Normalise line endings to LF in the repository and in the working copy.
+#
+# Why this file exists: stylua.toml sets `line_endings = "Unix"`, and this is a
+# Windows checkout where Git's autocrlf would otherwise hand StyLua CRLF files
+# and then rewrite them back. The two tools would fight on every save and every
+# diff would be full of phantom whole-file changes.
+#
+# Roblox tooling (Rojo, Studio) is line-ending agnostic, so LF everywhere is the
+# simplest thing that keeps the formatter and the VCS agreeing.
+
+* text=auto eol=lf
+
+*.lua      text eol=lf
+*.luau     text eol=lf
+*.json     text eol=lf
+*.toml     text eol=lf
+*.md       text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+.gitignore text eol=lf
+.luaurc    text eol=lf
+
+# Roblox binary formats must never be touched by line-ending conversion or
+# shown as text in a diff. They are gitignored, but a deliberate `git add -f`
+# of a reference place file should still be treated as binary.
+*.rbxl   binary
+*.rbxm   binary
+*.rbxlx  -text
+*.rbxmx  -text
+
+# Generated place files are not worth diffing even in their XML forms.
+*.rbxlx linguist-generated=true
+*.rbxmx linguist-generated=true

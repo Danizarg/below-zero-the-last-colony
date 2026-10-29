@@ -1,0 +1,16 @@
+# Rokit toolchain manifest for BELOW ZERO: THE LAST COLONY
+#
+# Install Rokit first (https://github.com/rojo-rbx/rokit), then run `rokit install`
+# in this directory. If you prefer Aftman, the same [tools] table works in an
+# `aftman.toml` file. If you prefer no toolchain manager at all, see SETUP.md for
+# the manual Rojo plugin route.
+#
+# NOTE: these versions were not verified from this machine (no network tooling was
+# available during scaffolding). If `rokit install` reports a missing version, run
+# `rokit add rojo-rbx/rojo` etc. without a version pin to grab the latest.
+
+[tools]
+rojo = "rojo-rbx/rojo@7.4.4"
+stylua = "JohnnyMorganz/StyLua@0.20.0"
+selene = "Kampfkarren/selene@0.27.1"
+lune = "lune-org/lune@0.8.9"

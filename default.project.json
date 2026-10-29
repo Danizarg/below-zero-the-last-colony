@@ -1,0 +1,88 @@
+{
+  "name": "BelowZeroTheLastColony",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "BelowZero": {
+        "$path": "src/shared"
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "BelowZeroServer": {
+        "$path": "src/server"
+      },
+      "BelowZeroTests": {
+        "$path": "src/tests"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "BelowZeroClient": {
+          "$path": "src/client"
+        }
+      },
+      "$properties": {
+        "CharacterWalkSpeed": 14,
+        "CharacterJumpPower": 45,
+        "EnableMouseLockOption": false,
+        "LoadCharacterAppearance": true
+      }
+    },
+
+    "ServerStorage": {
+      "$className": "ServerStorage"
+    },
+
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "Gravity": 160,
+        "StreamingEnabled": false,
+        "FilteringEnabled": true
+      }
+    },
+
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Technology": "ShadowMap",
+        "Ambient": [0.043, 0.047, 0.067],
+        "OutdoorAmbient": [0.055, 0.059, 0.082],
+        "Brightness": 0.6,
+        "ClockTime": 0,
+        "GeographicLatitude": 0,
+        "GlobalShadows": true,
+        "EnvironmentDiffuseScale": 0.25,
+        "EnvironmentSpecularScale": 0.15,
+        "ExposureCompensation": 0.15,
+        "FogColor": [0.027, 0.031, 0.047],
+        "FogStart": 40,
+        "FogEnd": 320
+      }
+    },
+
+    "SoundService": {
+      "$className": "SoundService",
+      "$properties": {
+        "AmbientReverb": "Cave",
+        "DistanceFactor": 3.3,
+        "RolloffScale": 1
+      }
+    },
+
+    "Players": {
+      "$className": "Players",
+      "$properties": {
+        "CharacterAutoLoads": false,
+        "RespawnTime": 3
+      }
+    }
+  }
+}

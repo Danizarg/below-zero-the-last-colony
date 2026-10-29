@@ -1,0 +1,28 @@
+# Build output
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+*.rbxl.lock
+*.rbxlx.lock
+build/
+out/
+
+# Toolchain
+.rokit/
+.aftman/
+~/.rokit
+
+# Editor
+.vscode/*
+!.vscode/settings.json.example
+.idea/
+*.code-workspace
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Local-only overrides (see src/shared/Config/LocalOverrides.example.lua)
+src/shared/Config/LocalOverrides.lua

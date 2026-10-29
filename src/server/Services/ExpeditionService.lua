@@ -1004,16 +1004,25 @@ function ExpeditionService:start()
 			if member then
 				--[[ A disconnect mid-run is treated as a death for loot purposes
 				     but does not block the rest of the party. The profile save
-				     on leave carries whatever was banked. ]]
-				if member.state == Enums.MemberState.Alive or member.state == Enums.MemberState.Downed then
+				     on leave carries whatever was banked.
+
+				     Every state but Extracted settles here. A member who had
+				     already DIED used to be skipped, so dying and then
+				     disconnecting destroyed the haul outright while dying and
+				     waiting out the run kept the death fraction of it — and
+				     `endSession` cannot make that up afterwards, because the
+				     profile leaves with the player. An extracted member has
+				     already banked and been unbound, so this is unreachable for
+				     them; the guard says so rather than relying on it. ]]
+				if member.state ~= Enums.MemberState.Extracted then
 					local fraction = session.difficulty.lootKeptOnDeathFraction
 					local deposit = self.context.InventoryService:depositBag(player, fraction)
 					--[[ Keys survive a disconnect like any other failure, so
 					     they have to be banked here too or they land in storage
 					     where nothing reads them. ]]
 					self:_bankAncientKeys(player, deposit)
+					member.state = Enums.MemberState.Dead
 				end
-				member.state = Enums.MemberState.Dead
 			end
 			self._byUser[player.UserId] = nil
 			self.context.CaveService:unbindPlayer(player)

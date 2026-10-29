@@ -7,15 +7,19 @@ look at.
 
 | Check | Result |
 |---|---|
-| `rojo build -o build/BelowZero.rbxlx` | pass, 991 KB |
-| `selene src` | 0 errors, 0 warnings, **0 parse errors** across 76 files |
-| `stylua --check src` | clean |
+| `rojo build -o build/BelowZero.rbxlx` | pass, 1,180 KB |
+| `selene src` | 0 errors, 0 warnings, **0 parse errors** across 83 files |
+| `stylua --check src tools` | clean |
 | `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
+| `lune run tools/run-integration` | **102 passed, 0 failed** in 8s |
 | `lune run tools/load-check` | **67 of 67 modules load** |
 
 **What has not been verified**: anything the Roblox engine owns. UI actually
 rendering and laying out, Instances assembling correctly, monster pathfinding,
-DataStore persistence, multiplayer. That is what §5 below is for, and it is the
+real DataStore persistence, real multiplayer. The integration suite narrowed
+this — it exercises service orchestration, the phase clock, the maze shift, the
+session-lock protocol and the disconnect paths against a simulated DataModel —
+but a simulation is not the engine. That is what §5 below is for, and it is the
 reason the checklist is 59 steps long rather than 5.
 
 If you only want to know whether the logic still holds, you do not need Studio
@@ -354,12 +358,12 @@ Six checks, all run from the repository root, all currently green. Run them
 before a commit; the Lune ones exit non-zero on failure, so they work in CI.
 
 ```bash
-lune run tools/run-tests && lune run tools/load-check && lune run tools/ref-check && lune run tools/call-check && selene src && stylua --check src
+lune run tools/run-tests && lune run tools/run-integration && lune run tools/load-check && lune run tools/ref-check && lune run tools/call-check && selene src && stylua --check src tools
 ```
 
 ### `lune run tools/run-tests`
 
-All 129 specs, headless, in under a second.
+All 129 unit specs, headless, in under a second.
 
 ```
 [BZ/Test] PASS  CaveLayout             23 passed, 0 failed, 0 skipped
@@ -375,6 +379,50 @@ Lune provides the datatypes. `tools/harness.luau` builds a fake instance tree
 over the real files so each module gets a `script` and a `require` that resolve
 exactly as they would after a Rojo sync. It is the same TestRunner and the same
 specs Studio runs.
+
+### `lune run tools/run-integration`
+
+All 102 integration specs: a fresh server booted per test, then real gameplay
+driven through it.
+
+```
+[integration] booting a simulated server per test
+[integration] loaded 7 spec file(s)
+[BZ/Test] PASS  Clock                  14 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Colony                 16 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Death                  13 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Disconnect             12 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Expedition             16 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Monsters               16 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Persistence            15 passed, 0 failed, 0 skipped
+[integration] OK: 102 tests passed in 8.2s
+```
+
+`tools/sim.luau` is what makes this possible, and it had to model the Instance
+tree by hand: Lune's `@lune/roblox` exists to manipulate place *files*, so it
+has no signals at all — `Instance.new("BindableEvent")` has no `.Event` — and
+it cannot derive `Position` from `CFrame`. Both matter here, because one of the
+bugs under test is about `HealthChanged` ordering and the services set
+`root.CFrame` then read `root.Position`. Datatypes still come from Lune, where
+they are exact.
+
+Time is virtual: `os.clock`, `os.time` and the whole `task` library run on a
+discrete-event scheduler, so a 25-minute expedition plays out in milliseconds.
+That is what makes the phase clock, the shift schedule, node respawns, autosave
+intervals and the 2-second corpse-destroy delay testable at all. The DataStore
+is a real in-memory store with genuine `UpdateAsync` read-modify-write
+semantics, because the session-lock protocol is where several bugs lived.
+
+**Honest scope.** This proves service logic and orchestration, not engine
+fidelity. `workspace:Raycast` returns nil, nothing renders, and
+`PathfindingService` is a stub. Every spec header names what it could not reach;
+§5 is still the checklist for the rest.
+
+The integration specs are Lune-only. `TestRunner.loadSpecs` walks
+`GetChildren()` and matches `*.spec`, so the `integration` folder — a Folder,
+not a ModuleScript — is skipped on Play. They do ship inside the place file
+(about 190 KB of it) because `src/tests` is mapped whole; they are inert there,
+and keeping the Rojo tree simple was judged worth the bytes.
 
 ### `lune run tools/load-check`
 

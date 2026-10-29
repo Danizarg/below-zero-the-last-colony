@@ -17,14 +17,15 @@ The toolchain is installed, so these all genuinely ran:
 
 | Check | Command | Result |
 |---|---|---|
-| Rojo builds the place file | `rojo build -o build/BelowZero.rbxlx` | **pass** — 991 KB. Rojo validates every `$properties` name and type against its reflection database, so the Lighting, Players and Workspace properties are all real |
-| Luau parses, via a real parser | `selene src` | **0 parse errors** across all 76 files |
+| Rojo builds the place file | `rojo build -o build/BelowZero.rbxlx` | **pass** — 1,180 KB. Rojo validates every `$properties` name and type against its reflection database, so the Lighting, Players and Workspace properties are all real |
+| Luau parses, via a real parser | `selene src` | **0 parse errors** across all 83 files |
 | Static analysis | `selene src` | **0 errors, 0 warnings** |
-| Formatting | `stylua --check src` | **clean** (44 files were reformatted to get there) |
-| Spec suite, headless | `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
+| Formatting | `stylua --check src tools` | **clean** (44 files were reformatted to get there) |
+| Unit suite, headless | `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
+| Integration suite, headless | `lune run tools/run-integration` | **102 passed, 0 failed** in 8s — a fresh server booted per test, playing real expeditions. 12 consecutive runs, identical |
 | Every module loads | `lune run tools/load-check` | **67 of 67 ModuleScripts load** |
-| Every constant reference resolves | `lune run tools/ref-check` | **3,820 references, 0 dangling** — no mistyped enum, route or theme token anywhere |
-| Every cross-service call is real | `lune run tools/call-check` | **313 calls, 0 broken** — no typo'd `self.context.X:method()`, none over-applied |
+| Every constant reference resolves | `lune run tools/ref-check` | **4,484 references, 0 dangling** — no mistyped enum, route or theme token anywhere |
+| Every cross-service call is real | `lune run tools/call-check` | **315 calls, 0 broken** — no typo'd `self.context.X:method()`, none over-applied |
 | Structural check | `node` heuristic over block/bracket balance | **0 problems** |
 
 **What that does and does not mean.** The pure logic is genuinely tested: the
@@ -85,11 +86,64 @@ cleared after a rescue; and the ability cooldown shade never drained.
 Two findings were **rejected** by verification — the agents that raised them were
 wrong, which is what the adversarial pass is for.
 
-**Important caveat:** these fixes are reasoned, not observed. Nine of the
-thirteen are in engine-dependent paths that the headless harness cannot reach, so
-they are covered by the regression steps in [SETUP.md](SETUP.md) §5 rather than
-by a test. The four that static tooling can police (the rate-limit gap, and the
-three config/contract issues) now have assertions.
+### What the simulation found
+
+`tools/sim.luau` (1,300 lines) boots all sixteen services against a modelled
+DataModel: a hand-written Instance tree with working signals, a virtual clock
+driving `os.clock`, `os.time` and all of `task`, and a real in-memory DataStore
+with genuine `UpdateAsync` read-modify-write semantics. 102 tests across 7 spec
+files then play the game through it.
+
+It found **six bugs**, four of them in code that had already passed static
+analysis, a six-dimension semantic review and 129 unit tests:
+
+| Bug | Consequence | Found by |
+|---|---|---|
+| A wiped run was torn down on the tick after the last death | **Solo players could never use the free rescue.** The session closed within half a second of the only player dying, so the rescue the death screen had just offered came back `wrong_zone`. In a party the session stayed open because teammates were alive, so this only ever hit people playing alone. The shop, the docs and the UI all promise "one free rescue, always available" | `sim.luau` itself |
+| The R5 corpse fix gated the reload on `player.Character` being nil | Destroying a character does **not** clear that property, so the reload was skipped and the rescued player was revived into the corpse anyway — then the pending destroy pulled it out from under them | `sim.luau` itself |
+| `DataService` released the profile synchronously, first, in `PlayerRemoving` | The entire recoverable haul of every disconnecting player, lost in mock and degraded mode. See the two-of-thirteen note above | `Disconnect.spec` |
+| A member who had already **died** was skipped by the disconnect deposit | Dying and then disconnecting destroyed the haul outright, while dying and waiting out the run kept the death fraction of it. `endSession` cannot make it up afterwards, because the profile leaves with the player | `Death.spec` author, reading the handler |
+| The release cleared `_released[userId]`, the marker that blocks a late write | A read-only session for the player's next server, for the full lock timeout. See above | `Persistence.spec` |
+| `BuildingService:_afterChange` pushed the colony snapshot *before* reassigning workers | After a demolition the client was still told the job usage of a building that was gone, and went on being told it until some later push happened to correct it. Cosmetic, but it reads as a lost worker | `Colony.spec` |
+
+All six are fixed, and each has a test that now asserts the **fixed** behaviour
+and fails if it regresses.
+
+It also found a defect in the test suite itself, which is worth recording
+because it is the failure mode that makes a harness worse than no harness.
+`ExpeditionService:_newSeed` mixes in global `math.random`, which Lune seeds
+differently per process, so every run drew a different cave; `quantise` turns a
+fractional yield into a probability, so the harvest assertion was a coin flip
+and failed about one run in thirty. Every spec that depends on cave content now
+passes an explicit seed. Separately, simulated characters were not being parented
+into the Workspace, which made `_die`'s `character.Parent` guards inert — **a
+test was passing for the wrong reason**, and fixing the harness is what exposed
+the incomplete R5 fix above.
+
+When this section was first written every one of those thirteen fixes was
+**reasoned, not observed**, and nine of them sat in paths no headless test could
+reach. That is no longer the case, and what changed the position is the next
+section: a simulated server now drives them. Eleven of the thirteen have a named
+regression test; the remaining two (the spectate overlay and the cooldown shade)
+are client rendering and stay in the [SETUP.md](SETUP.md) §5 checklist.
+
+**Two of the thirteen were not actually fixed.** Both looked right and both were
+wrong, and only the simulation showed it — which is the entire argument for
+having built it:
+
+- *"A mid-expedition disconnect lost the whole recoverable haul."* Deferring
+  `InventoryService`'s bag cleanup moved the second obstacle out of the way and
+  left the first one standing: `DataService` loads first, so **its**
+  `PlayerRemoving` handler released the profile before `ExpeditionService` could
+  deposit anything into it. On a live server this happened to work, because a
+  real `UpdateAsync` yields and lets the later handlers run. It does **not**
+  yield in mock mode or while the store is degraded, so in exactly those
+  configurations the whole haul — Ancient Keys included — was still being lost.
+- *"An in-flight autosave could re-acquire a released lock."* The guard was
+  added; the release then cleared the marker the guard reads, so the window was
+  still open. A save suspended in its retry backoff woke up, saw an empty
+  `lockJobId`, and wrote its own jobId back over a lock nobody held — leaving the
+  player's next server read-only for the full two-minute lock timeout.
 
 ---
 
@@ -218,7 +272,15 @@ is the one thing this document cannot claim.
 | Rng spec | ✅ | 15 tests: determinism, ranges, weighting, shuffle correctness |
 | PlotGrid spec | ✅ | 14 tests: round-trips, snapping, bounds, overlap |
 | Module load check | ✅ | `lune run tools/load-check` requires all 67 ModuleScripts. Selene proves code parses; this proves it loads, which is the failure that takes a server down at startup |
-| Server integration tests | ❌ | Nothing drives a full expedition end to end. The harness could grow into it — the services load, so stubbing Heartbeat and stepping the clock is the next increment. Manual checklist in SETUP.md §5 covers it today |
+| Simulated server | ✅ | `tools/sim.luau` boots all 16 services against a modelled DataModel: working signals, a virtual clock over `os.clock`/`os.time`/`task`, an in-memory DataStore with real `UpdateAsync` semantics. Lune's own `Instance` could not be used — `@lune/roblox` manipulates place files, so it has no signals and cannot derive `Position` from `CFrame` |
+| Expedition spec | ✅ | 16 tests: the key banking regression end to end, re-settle hammering, harvest and depletion, range, cross-session, extraction gating, abandon recovery, per-player loot, world-slot isolation |
+| Monsters spec | ✅ | 16 tests: the Crawler is killable and the Stalker is not, damage-scaled interest loss, no spawns in safe rooms, difficulty scaling, every refusal path, the 1-HP floor, downed immunity |
+| Clock spec | ✅ | 14 tests: prep → day → dusk → night on the configured durations, no phase ending early, one announcement per boundary, the duration contract, the shift schedule and its two warnings, layout validity after every shift, timeout settlement and teardown |
+| Death spec | ✅ | 13 tests: the clamp that makes instant death impossible, the downed window per difficulty, the R2 death loop, the R5 corpse reuse, the solo rescue window, revive channelling and interruption, death settlement |
+| Disconnect spec | ✅ | 12 tests: the R8 haul and key banking, mid-load disconnect releasing the lock, party and session teardown, abandon as the contrast case |
+| Persistence spec | ✅ | 15 tests: session locking across two servers sharing one store, the read-only fallback, degradation and recovery, the late-write guard, idempotent receipts, autosave refresh. Tuning constants are matched out of the service's own source rather than hard-coded |
+| Colony spec | ✅ | 16 tests: placement, upgrade, repair, demolition and their exact costs and refunds, grid bounds and overlap, visitor isolation, worker assignment and production, storage atomicity on every refusal |
+| Integration test run | ✅ | `lune run tools/run-integration` runs all 102 in 8s against a fresh server per test; exits non-zero, so it can gate a commit or CI. 12 consecutive runs gave identical results |
 | Headless test run | ✅ | `tools/harness.luau` builds a fake instance tree over the real files and supplies the datatypes Lune lacks. `lune run tools/run-tests` runs all 129 in 0.7s; exits non-zero, so it can gate a commit or CI |
 
 ---
@@ -303,11 +365,30 @@ accumulates and does nothing, which is worse than not having it.
 Ownership, equipping and validation all exist. A skin that changes nothing makes
 the whole shop feel fake.
 
-### 5. Integration tests for a full expedition
+### 5. The gaps the simulation still cannot reach
 
-A headless harness that starts a session, simulates harvests and shifts, and
-asserts the results settle correctly. The unit tests cover the risky *logic*;
-nothing covers the *orchestration*, which is where the remaining bugs will be.
+Done, and it found six bugs — see **What the simulation found** above. What it
+deliberately leaves uncovered, each for a stated reason, is the honest next
+increment:
+
+- **Offline production catch-up.** `_settleOffline` needs `os.time()` to jump
+  between sessions; the virtual clock does not model a gap across a
+  disconnect/reconnect cycle.
+- **Building condition decay and `productionMult`.** Same tick as production, but
+  asserting them needs exact arithmetic over a probabilistic path.
+- **The shift rollback branch.** `CaveService` rolls a failed shift back and warns;
+  no seed tried produced a shift that failed validation, so the branch is
+  unreached without forcing internals.
+- **Multi-player shift protection.** Two members in different rooms, both
+  protected — needs a real party inside a shift test.
+- **`LimitReached`** for `maxCount` and the 48-building cap: placing 48 buildings
+  per test is slow for what it proves.
+- **Recruitment and housing population caps**, and the `craft_iron_pick`
+  station-level gate (observed working, not asserted).
+- **Anything visual.** `workspace:Raycast` returns nil and nothing renders, so the
+  shift tests assert on the *layout* — doors, reachability, validity — not on
+  geometry. The spectate overlay and the ability cooldown shade are the two
+  semantic-review fixes with no test for this reason.
 
 ### 6. Finish the Cook
 

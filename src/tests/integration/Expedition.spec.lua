@@ -18,6 +18,16 @@ return function(suite, context)
 	local newServer = context.newServer
 	local CFrame = context.roblox.CFrame
 
+	--[[ A FIXED SEED on every run. `ExpeditionService:_newSeed` mixes in global
+	     `math.random`, which Lune seeds differently per process, so without this
+	     every run drew a different cave. That is not merely untidy: `quantise`
+	     turns a fractional yield into a probability, so whichever tier-0 node a
+	     given layout happened to put within reach could legally return nothing
+	     from a swing, and the harvest test below failed about one run in thirty.
+	     The route honours a client-supplied seed only because GameConfig.Debug
+	     is true. ]]
+	local SEED = 20261029
+
 	--[[ Shared setup: a player, a started expedition, and the handles a test
 	     needs. Returned as a table rather than globals so tests stay readable. ]]
 	local function startRun(difficultyId)
@@ -26,8 +36,9 @@ return function(suite, context)
 		local Enums = server.require(server.shared.Enums)
 
 		local player = server.addPlayer("Alice")
-		local result = server.invoke(server.services and player or player, Routes.Request.StartExpedition, {
+		local result = server.invoke(player, Routes.Request.StartExpedition, {
 			difficultyId = difficultyId or "easy",
+			seed = SEED,
 		})
 
 		local session = server.services.ExpeditionService:sessionOf(player)

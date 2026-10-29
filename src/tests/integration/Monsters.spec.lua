@@ -283,7 +283,11 @@ return function(suite, context)
 	suite:test("a monster in another session cannot be attacked", function(expect)
 		local run = startRun("medium")
 		local bob = run.server.addPlayer("Bob")
-		run.server.invoke(bob, run.Routes.Request.StartExpedition, { difficultyId = "easy" })
+		--[[ Medium and seeded, like every other session in this file. Easy solo
+		     applies a 0.3 monster multiplier, so an unseeded easy layout can
+		     legally contain no monsters at all, and this test would then fail on
+		     its own setup rather than on the thing it is checking. ]]
+		run.server.invoke(bob, run.Routes.Request.StartExpedition, { difficultyId = "medium", seed = SEED })
 		local bobSession = run.services.ExpeditionService:sessionOf(bob)
 
 		local foreignId, foreignMonster

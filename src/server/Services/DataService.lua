@@ -533,7 +533,6 @@ function DataService:save(player, options)
 			     leak; there is simply nothing durable to show for it. ]]
 			entry.lockHeld = false
 			self._profiles[userId] = nil
-			self._released[userId] = nil
 			log:fault(
 				"released %s (%d) WITHOUT PERSISTING: the DataStore is unavailable, this session is lost",
 				player.Name,
@@ -550,7 +549,15 @@ function DataService:save(player, options)
 	if release then
 		entry.lockHeld = false
 		self._profiles[userId] = nil
-		self._released[userId] = nil
+		--[[ `_released[userId]` deliberately STAYS set, and clearing it here
+		     reopened the exact window the guard above closes. A save that was
+		     suspended in its retry backoff when the player left would wake up
+		     afterwards, see `lockJobId == ""` (which the first guard reads as
+		     free) and write this server's jobId back over a lock nobody holds
+		     — handing the player's next server a READ-ONLY session until
+		     LOCK_TIMEOUT expired. `load` clears the marker when they rejoin,
+		     so keeping it costs one boolean per departed player and never
+		     outlives a session. ]]
 		log:info("saved and released %s (%d)", player.Name, userId)
 	end
 
@@ -637,7 +644,26 @@ function DataService:start()
 
 	Players.PlayerRemoving:Connect(function(player)
 		self.profileReleasing:Fire(player, self._profiles[player.UserId])
-		self:save(player, { release = true, force = true })
+
+		--[[ DEFERRED, and the ordering is load-bearing. This service is first
+		     in the bootstrap, so this handler runs before every other
+		     PlayerRemoving subscriber — and a release drops
+		     `_profiles[userId]`, after which `get(player)` is nil for all of
+		     them. ExpeditionService then deposits a disconnecting player's
+		     bag into a profile that is no longer there, and the entire haul
+		     vanishes: no death fraction, and a held Ancient Key destroyed.
+
+		     On a live server with a real DataStore this happened to work, by
+		     accident: the release's `UpdateAsync` yields, which lets the
+		     remaining handlers run first. It does NOT yield in mock mode
+		     (Studio without API access) or while the store is degraded,
+		     because `_mockUpdate` is synchronous — so in exactly those
+		     configurations every disconnecting player silently lost their
+		     run. Deferring makes the ordering explicit instead of a
+		     side effect of where the engine happens to yield. ]]
+		task.defer(function()
+			self:save(player, { release = true, force = true })
+		end)
 	end)
 
 	-- Autosave loop, which also refreshes the session lock.

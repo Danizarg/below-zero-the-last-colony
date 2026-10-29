@@ -26,6 +26,16 @@
 	fidelity. See the header of tools/sim.luau. The Studio checklist in
 	SETUP.md §5 still covers rendering, physics, real pathfinding and real
 	DataStores.
+
+	Note on determinism: there is deliberately NO `math.randomseed` here.
+	`ExpeditionService:_newSeed` mixes in global `math.random`, which Lune seeds
+	differently per process, and that made the suite nondeterministic — a
+	fractional harvest yield is quantised into a probability, so one assertion
+	failed about one run in thirty. The fix is an explicit `seed` in every spec
+	whose assertions depend on cave content, and that is what is in place. A
+	global seed here would paper over the next spec that forgets one: it would
+	look stable in CI while asserting against an arbitrary layout. Seed the
+	session, not the process.
 ]]
 
 local process = require("@lune/process")

@@ -577,11 +577,21 @@ end
 
 function BuildingService:_afterChange(player, action, placement)
 	self.buildingChanged:Fire(player, action, placement)
-	self.context.ColonyService:pushColony(player)
-	self.context.InventoryService:pushStorage(player)
+
+	--[[ Workers are reassigned BEFORE the snapshot goes out.
+	     `onBuildingsChanged` idles any colonist whose building just
+	     vanished, and it announces that with a Notify only — it never
+	     pushes a colony snapshot of its own. So pushing first meant the
+	     client was told the job usage of a building that had already been
+	     demolished, and kept being told it until some later colony push
+	     (the ten-second production tick, or the player's next action)
+	     happened to correct it. ]]
 	if self.context.NPCService then
 		self.context.NPCService:onBuildingsChanged(player)
 	end
+
+	self.context.ColonyService:pushColony(player)
+	self.context.InventoryService:pushStorage(player)
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────

@@ -615,8 +615,21 @@ function InventoryService:start()
 	end)
 
 	Players.PlayerRemoving:Connect(function(player)
-		self._bags[player.UserId] = nil
-		self._bagCapacity[player.UserId] = nil
+		--[[ Deferred on purpose.
+
+		     This service starts early in the bootstrap, so its PlayerRemoving
+		     handler is connected before ExpeditionService's — and Roblox runs
+		     connections in connection order. Clearing the bag synchronously
+		     here would therefore wipe it before ExpeditionService got the chance
+		     to deposit a disconnecting player's recoverable haul, costing them
+		     the entire run.
+
+		     task.defer puts this after every synchronous handler for the same
+		     event, so the deposit happens first and this only reclaims memory. ]]
+		task.defer(function()
+			self._bags[player.UserId] = nil
+			self._bagCapacity[player.UserId] = nil
+		end)
 	end)
 
 	log:info("ready")

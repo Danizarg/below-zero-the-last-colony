@@ -52,13 +52,34 @@ local LOCK_RETRY_DELAY = 3
 local LOCK_RETRY_ATTEMPTS = 4
 local MAX_RECEIPTS_KEPT = 60
 
+--[[ How long to serve from memory before trying the real DataStore again.
+     Short enough that a transient outage self-heals within a session. ]]
+local DEGRADED_RETRY_SECONDS = 60
+
 function DataService.new()
 	local self = setmetatable({}, DataService)
 
 	self._profiles = {} -- [userId] = { data, readOnly, loaded, dirty, lastSave }
 	self._loading = {} -- [userId] = true while a load is in flight
 	self._mockStore = {} -- [key] = profile, used when DataStores are unavailable
-	self._useMock = not GameConfig.UseDataStore
+	self._released = {} -- [userId] = true once released, to block a late write
+
+	--[[ Two different reasons to be using the in-memory store, and they must not
+	     be conflated:
+
+	     intentionalMock  GameConfig.UseDataStore is false, or Studio has no API
+	                      access. Expected, announced, and save() reporting
+	                      success is correct — there is nothing to persist to.
+
+	     degraded         a real DataStore call FAILED. The game stays playable
+	                      on the in-memory store, but save() must report failure,
+	                      because telling callers a write succeeded when it only
+	                      reached RAM is how purchases and progress get lost
+	                      silently. ]]
+	self._intentionalMock = not GameConfig.UseDataStore
+	self._useMock = self._intentionalMock
+	self._degraded = false
+	self._degradedUntil = 0
 	self._mockReported = false
 	self._jobId = (game.JobId ~= "" and game.JobId) or ("studio-" .. tostring(math.random(1, 1e9)))
 	self._shuttingDown = false
@@ -79,6 +100,24 @@ local function keyFor(userId)
 end
 
 function DataService:_getStore()
+	if self._intentionalMock then
+		return nil
+	end
+
+	--[[ A degraded server RETRIES rather than latching off for its whole life.
+	     DataStore outages are usually transient, and permanently giving up on
+	     the first blip means every player who joins afterwards silently plays a
+	     session that is never saved. ]]
+	if self._degraded then
+		if os.clock() < self._degradedUntil then
+			return nil
+		end
+		log:info("retrying the real DataStore after a degraded period")
+		self._degraded = false
+		self._useMock = false
+		self._store = nil
+	end
+
 	if self._useMock then
 		return nil
 	end
@@ -96,15 +135,22 @@ function DataService:_getStore()
 	return store
 end
 
+--[[ Called when a real DataStore call fails. Marks the server DEGRADED, which
+     is not the same as intentional mock mode: saves will now report failure so
+     nothing acknowledges a write that only reached RAM. ]]
 function DataService:_fallBackToMock(reason)
-	if self._useMock then
-		return
-	end
 	self._useMock = true
+	self._degraded = true
+	self._degradedUntil = os.clock() + DEGRADED_RETRY_SECONDS
+
+	--[[ Reported once per degradation, not once per process, so a recovery
+	     followed by a second outage is still visible in the log. ]]
 	if not self._mockReported then
 		self._mockReported = true
-		log:warn(
-			"falling back to IN-MEMORY profiles; nothing will persist across sessions. Reason: %s",
+		log:fault(
+			"DataStore call failed; serving profiles from memory and REPORTING SAVE FAILURES "
+				.. "until it recovers (retry in %ds). Reason: %s",
+			DEGRADED_RETRY_SECONDS,
 			tostring(reason)
 		)
 		if RunService:IsStudio() then
@@ -112,7 +158,16 @@ function DataService:_fallBackToMock(reason)
 				"in Studio, enable Game Settings > Security > Enable Studio Access to API Services to test real saving"
 			)
 		end
+		task.delay(DEGRADED_RETRY_SECONDS, function()
+			self._mockReported = false
+		end)
 	end
+end
+
+--[[ True when writes are not reaching durable storage because something broke,
+     as opposed to this being a deliberately store-less build. ]]
+function DataService:isDegraded()
+	return self._degraded == true
 end
 
 --[[ Retry wrapper with backoff. Returns ok, result. ]]
@@ -172,6 +227,10 @@ function DataService:load(player)
 	end
 
 	self._loading[userId] = true
+	--[[ A rejoining player must be able to save again, so clear any release
+	     marker left by their previous session on this server. ]]
+	self._released[userId] = nil
+
 	local key = keyFor(userId)
 	local now = os.time()
 
@@ -301,6 +360,19 @@ function DataService:load(player)
 	self._profiles[userId] = entry
 	self._loading[userId] = nil
 
+	--[[ The load yielded on UpdateAsync, and the player may have left during it.
+
+	     The lock was already WRITTEN by that transform, but PlayerRemoving fired
+	     while this entry did not yet exist, so its release was dropped as
+	     "not_loaded" — leaving a lock held by nobody. The player would then be
+	     unable to save on rejoin until it timed out, two minutes later. Release
+	     it now instead. ]]
+	if player.Parent == nil then
+		log:info("%s (%d) left during their load; releasing the lock immediately", player.Name, userId)
+		self:save(player, { release = true, force = true })
+		return entry
+	end
+
 	log:info("loaded profile for %s (%d)%s", player.Name, userId, entry.readOnly and " [read-only]" or "")
 	self.profileLoaded:Fire(player, entry)
 	return entry
@@ -389,10 +461,27 @@ function DataService:save(player, options)
 			end
 		end
 
+		--[[ Never RE-ACQUIRE a lock we already released.
+
+		     An autosave can still be in flight when the player leaves and the
+		     release write lands. That autosave then sees lockJobId == "" —
+		     which the guard above reads as "free" — and would write our jobId
+		     back, leaving a lock held by a server the player has already left
+		     and locking them out of their own profile until it times out. ]]
+		if not release and self._released[userId] then
+			return nil
+		end
+
 		local outgoing = TableUtil.deepCopy(data)
 		outgoing.meta.lockJobId = release and "" or jobId
 		outgoing.meta.lockTimestamp = release and 0 or os.time()
 		return outgoing
+	end
+
+	if release then
+		--[[ Set BEFORE the write, so an autosave that is already mid-flight is
+		     refused by the guard above rather than racing this. ]]
+		self._released[userId] = true
 	end
 
 	local store = self:_getStore()
@@ -419,9 +508,40 @@ function DataService:save(player, options)
 	end
 
 	if result == nil then
+		if self._released[userId] and not release then
+			--[[ Expected, not an error: an in-flight autosave was refused
+			     because the profile had already been released. ]]
+			return false, "released"
+		end
 		log:warn("save aborted for %s (%d): the profile lock is held by another session", player.Name, userId)
 		entry.readOnly = true
 		return false, "lock_lost"
+	end
+
+	--[[ A degraded server wrote to MEMORY, not to the DataStore. Reporting
+	     success here is what would let MonetizationService acknowledge a receipt
+	     for a grant that exists only in RAM, and let the shutdown handler log
+	     "saves complete" for data that is about to vanish.
+
+	     `dirty` is deliberately NOT cleared: the profile still has unsaved
+	     changes, so the next autosave should try again once the store recovers. ]]
+	if self._degraded then
+		data.diagnostics.saveFailures = (data.diagnostics.saveFailures or 0) + 1
+
+		if release then
+			--[[ Still drop the entry. The player has gone, and holding it would
+			     leak; there is simply nothing durable to show for it. ]]
+			entry.lockHeld = false
+			self._profiles[userId] = nil
+			self._released[userId] = nil
+			log:fault(
+				"released %s (%d) WITHOUT PERSISTING: the DataStore is unavailable, this session is lost",
+				player.Name,
+				userId
+			)
+		end
+
+		return false, "no_persistence"
 	end
 
 	entry.dirty = false
@@ -430,6 +550,7 @@ function DataService:save(player, options)
 	if release then
 		entry.lockHeld = false
 		self._profiles[userId] = nil
+		self._released[userId] = nil
 		log:info("saved and released %s (%d)", player.Name, userId)
 	end
 
@@ -546,10 +667,15 @@ function DataService:start()
 		local pending = 0
 		local finished = Instance.new("BindableEvent")
 
+		local failedToPersist = 0
+
 		for _, player in ipairs(Players:GetPlayers()) do
 			pending += 1
 			task.spawn(function()
-				self:save(player, { release = true, force = true })
+				local saved, reason = self:save(player, { release = true, force = true })
+				if not saved and reason ~= "clean" and reason ~= "read_only" then
+					failedToPersist += 1
+				end
 				pending -= 1
 				if pending <= 0 then
 					finished:Fire()
@@ -567,7 +693,13 @@ function DataService:start()
 			finished.Event:Wait()
 		end
 
-		log:info("shutdown saves complete")
+		--[[ Report what actually happened. "Saves complete" after a degraded
+		     shutdown would be a lie about data that no longer exists. ]]
+		if failedToPersist > 0 then
+			log:fault("shutdown finished but %d profile(s) DID NOT PERSIST", failedToPersist)
+		else
+			log:info("shutdown saves complete")
+		end
 	end)
 
 	log:info(

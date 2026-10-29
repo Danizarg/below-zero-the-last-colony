@@ -732,14 +732,30 @@ function SurvivalService:start()
 					--[[ Safety net. All gameplay damage goes through
 					     applyDamage, which clamps; this catches anything else
 					     (a stray script, an engine edge case) and converts it
-					     into the downed state rather than a death. ]]
-					if health <= 0 and not self:isDowned(player) then
-						local session = self.context.ExpeditionService:sessionOf(player)
-						if session then
-							humanoid.Health = SURVIVAL.DownedHealth
-							self:down(player, "unknown")
-						end
+					     into the downed state rather than a death.
+
+					     It must only fire for a player who is still ALIVE.
+					     `_die` deliberately zeroes Health to kill the body, and
+					     without the state check below this net would catch that
+					     write and re-down the player it just killed — then the
+					     new timer would expire, call `_die` again, and loop
+					     forever. A player could never actually die. ]]
+					if health > 0 or self:isDowned(player) then
+						return
 					end
+
+					local session = self.context.ExpeditionService:sessionOf(player)
+					if not session then
+						return
+					end
+
+					local member = session.members[player.UserId]
+					if not member or member.state ~= Enums.MemberState.Alive then
+						return
+					end
+
+					humanoid.Health = SURVIVAL.DownedHealth
+					self:down(player, "unknown")
 				end)
 			end
 			self:resetFor(player, false)

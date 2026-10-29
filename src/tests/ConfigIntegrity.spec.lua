@@ -791,6 +791,11 @@ return function(suite)
 			Routes.Request.Interact,
 			Routes.Request.StartExpedition,
 			Routes.Request.PlaceBuilding,
+			--[[ Every route that can write to a profile belongs here. Leaving an
+			     expedition settles rewards, and it was once unbudgeted. ]]
+			Routes.Request.LeaveExpedition,
+			Routes.Request.RequestExtraction,
+			Routes.Request.RequestRescue,
 		}) do
 			expect.truthy(Routes.limitsFor(route), ("route %q has no explicit rate limit"):format(route))
 		end

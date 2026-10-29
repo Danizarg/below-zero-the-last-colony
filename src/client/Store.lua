@@ -11,6 +11,8 @@
 	without asking again.
 ]]
 
+local Players = game:GetService("Players")
+
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("BelowZero")
 local Enums = require(Shared.Enums)
 local Net = require(Shared.Util.Net)
@@ -208,6 +210,15 @@ function Store.start()
 		--[[ downedRemaining is deliberately assigned rather than merged: nil
 		     means "not downed" and must be able to clear. ]]
 		Store.state.stats.downedRemaining = payload.downedRemaining
+
+		--[[ Belt and braces on the spectate overlay: if the server says we are
+		     alive again, we are not spectating, whatever route brought us back. ]]
+		if Store.state.spectating and payload.state == Enums.MemberState.Alive then
+			Store.state.spectating = false
+			Store.state.spectateInfo = nil
+			touch("spectate")
+		end
+
 		touch("stats")
 	end)
 
@@ -215,6 +226,9 @@ function Store.start()
 		if type(payload) ~= "table" then
 			return
 		end
+		--[[ Stamped so the HUD can drain the cooldown locally; this route only
+		     fires on use or refresh, so its cooldownRemaining is a snapshot. ]]
+		payload.syncedAt = os.clock()
 		Store.state.role = payload
 		if payload.roles then
 			Store.state.roles = payload.roles
@@ -238,6 +252,11 @@ function Store.start()
 		if type(payload) ~= "table" then
 			return
 		end
+		--[[ Stamp the arrival against the CLIENT's own clock. The server sends
+		     remaining durations rather than timestamps, because os.clock() is
+		     process-relative and a server value means nothing here. The HUD
+		     interpolates from this stamp between syncs. ]]
+		payload.syncedAt = os.clock()
 		Store.state.expedition = payload
 		touch("expedition")
 	end)
@@ -284,8 +303,9 @@ function Store.start()
 		end
 		if Store.state.expedition then
 			Store.state.expedition.phase = payload.phase
-			Store.state.expedition.phaseEndsAt = payload.endsAt
+			Store.state.expedition.phaseRemaining = payload.remaining or payload.duration
 			Store.state.expedition.phaseDuration = payload.duration
+			Store.state.expedition.syncedAt = os.clock()
 		end
 		Store.phaseChanged:Fire(payload)
 		touch("expedition")
@@ -357,6 +377,15 @@ function Store.start()
 
 	Net.on(Routes.Push.Revived, function(payload)
 		if type(payload) == "table" then
+			--[[ A rescue or revive of the LOCAL player clears the spectate
+			     overlay. Without this it only cleared on a zone change back to
+			     the colony, so a rescued player kept a full-screen "YOU DIED"
+			     sheet over their HUD for the rest of the run. ]]
+			if payload.userId == Players.LocalPlayer.UserId then
+				Store.state.spectating = false
+				Store.state.spectateInfo = nil
+				touch("spectate")
+			end
 			Store.teammateRevived:Fire(payload)
 		end
 	end)
@@ -383,6 +412,7 @@ function Store.start()
 				Store.state.settings = response.settings or {}
 				Store.state.cosmetics = response.cosmetics
 				Store.state.readOnly = response.readOnly == true
+				Store.state.degraded = response.degraded == true
 				Store.state.directory = response.directory or {}
 				Store.state.version = response.version or "?"
 				touch("colony")

@@ -472,6 +472,9 @@ function ColonyService:start()
 			settings = profile.settings,
 			cosmetics = profile.cosmetics,
 			readOnly = self.context.DataService:isReadOnly(player),
+			--[[ Surfaced because a player whose session will not be saved
+			     deserves to know before they spend an hour on it. ]]
+			degraded = self.context.DataService:isDegraded(),
 			directory = self:directory(player),
 			version = GameConfig.Version,
 		}

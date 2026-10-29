@@ -298,6 +298,12 @@ function ColonyHUD:refresh()
 		self.readOnlyWarning.Visible = true
 		self.readOnlyWarning.Text = "Your save is read-only this session: another server still holds it. "
 			.. "Progress will not be kept. Try rejoining in a minute."
+	elseif state.degraded then
+		--[[ Different cause, same consequence, and the player should hear about
+		     it before they invest an hour in the session. ]]
+		self.readOnlyWarning.Visible = true
+		self.readOnlyWarning.Text = "Saving is currently unavailable, so progress may not be kept. "
+			.. "The server is retrying; rejoining later is safest."
 	else
 		self.readOnlyWarning.Visible = false
 	end

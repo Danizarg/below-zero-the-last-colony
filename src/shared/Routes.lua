@@ -120,6 +120,10 @@ Routes.Limits = {
 	[Routes.Request.AssignJob] = { burst = 8, window = 2 },
 	[Routes.Request.StartExpedition] = { burst = 2, window = 10 },
 	[Routes.Request.RequestExtraction] = { burst = 3, window = 5 },
+	--[[ Settlement routes are tightly budgeted as defence in depth. The real
+	     guard is the member-state check in ExpeditionService, but a route that
+	     writes to a profile should never also be cheap to spam. ]]
+	[Routes.Request.LeaveExpedition] = { burst = 2, window = 10 },
 	[Routes.Request.RequestRescue] = { burst = 2, window = 10 },
 	[Routes.Request.GetProfile] = { burst = 3, window = 5 },
 	[Routes.Request.PromptPurchase] = { burst = 3, window = 10 },

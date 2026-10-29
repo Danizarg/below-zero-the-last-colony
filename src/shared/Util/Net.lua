@@ -339,7 +339,15 @@ local function dispatchRequest(player, route, payload)
 
 	local entry = handlers[route]
 	if not entry then
-		log:warn("unknown request route %q from %s", route, player.Name)
+		--[[ Rate-limit the unknown-route path too, against a SHARED bucket.
+
+		     Budgeting per route name would be useless here: the client picks the
+		     name, so it could mint a fresh bucket per message. One bucket for
+		     all unknown routes bounds the log writes, which is the only cost an
+		     unknown route can impose. ]]
+		if consumeToken(player, "__unknown__", 4, 5) then
+			log:warn("unknown request route %q from %s", route, player.Name)
+		end
 		return { ok = false, reason = Enums.Reject.BadRequest }
 	end
 
@@ -376,7 +384,10 @@ local function dispatchEvent(player, route, payload)
 
 	local entry = listeners[route]
 	if not entry then
-		log:warn("unknown event route %q from %s", route, player.Name)
+		-- Same shared bucket as unknown requests; see dispatchRequest.
+		if consumeToken(player, "__unknown__", 4, 5) then
+			log:warn("unknown event route %q from %s", route, player.Name)
+		end
 		return
 	end
 

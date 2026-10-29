@@ -280,6 +280,32 @@ marked **⚠** is a known gap, documented in `DEVELOPMENT_STATUS.md`.
 | 55 | Both harvest the same room | Each gets their own drops; there is no shared loot pool to race for |
 | 56 | One extracts, the other stays | The leaver gets their results; the other keeps playing until night ends |
 
+### Regressions — bugs found by review and fixed without being observed
+
+These thirteen were found by a semantic review, not by running the game, so the
+fixes are reasoned rather than seen working. Nine are in engine paths the
+headless harness cannot reach. **Check these specifically.**
+
+| # | Do | Expect |
+|---|---|---|
+| R1 | Extract cleanly carrying an Ancient Key, then examine the gate | Keys held shows **1 banked**. Before the fix, keys landed in colony storage where no gate code reads them, so extracting well made a key unusable while *failing* banked it |
+| R2 | Let the downed timer run all the way out | You die **once**: "YOU DIED", spectate, rescue offered. Before the fix, the `HealthChanged` net re-downed you and the cycle repeated forever, so death never completed |
+| R3 | Extract, then (with a teammate still below) try to leave the expedition again | Refused with `already_settled`. Before the fix this re-granted the whole run's XP and +1 mastery per call |
+| R4 | Watch the phase clock and "SHIFT IN" countdown for 30s | Both count **down smoothly and correctly**. Before the fix the server sent its own `os.clock()`, which is process-relative, so the client computed garbage |
+| R5 | Die, then use the free rescue **within 2 seconds** | You get a fresh living body at the tunnel mouth. Before the fix you were revived into the corpse, which a pending destroy then removed |
+| R6 | Die, use the rescue, then look at the screen | The full-screen "YOU DIED" sheet is **gone**. Before the fix it only cleared on returning to the colony |
+| R7 | Use your role ability and watch the button | The cooldown shade **drains**. Before the fix it froze at full width until the next push |
+| R8 | Disconnect mid-expedition holding resources, rejoin, check storage | The difficulty's recovery fraction is there. Before the fix `InventoryService` cleared the bag first and you lost the lot |
+| R9 | Disconnect during the join (quit the instant you spawn), then rejoin | You load normally. Before the fix the lock stayed held by nobody and you got a read-only session for two minutes |
+| R10 | Disconnect mid-run, rejoin, start a **new** expedition before the old one times out | The new run is unaffected. Before the fix `endSession` nilled your session binding and ripped you out of it |
+| R11 | Spam a nonsense route name from the console | Logs are rate-limited, not one line per message |
+
+For the DataStore-degradation fix (a transient error used to latch the server
+into in-memory mode forever while reporting saves as successful), the cheapest
+check is to start a session **without** API services enabled and confirm the HUD
+shows "Saving is currently unavailable" and the output says
+`DID NOT PERSIST` rather than `saves complete`.
+
 ### Persistence (needs DataStores on — step 3)
 
 | # | Do | Expect |

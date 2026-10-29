@@ -726,14 +726,21 @@ function ExpeditionHUD:refreshClock()
 	self.phaseBlurb.Text = PHASE_BLURB[phase] or ""
 	self.phaseBar.setColor(PHASE_COLOR[phase] or Theme.Color.Accent)
 
-	local remaining = math.max(0, (expedition.phaseEndsAt or 0) - os.clock())
+	--[[ The server sends remaining DURATIONS plus the client's own receipt
+	     stamp, never a server timestamp: os.clock() is process-relative, so
+	     subtracting the client's clock from a server clock value yields
+	     nonsense. Everything below counts down from the last sync using this
+	     client's clock, which is the only one it can trust. ]]
+	local sinceSync = math.max(0, os.clock() - (expedition.syncedAt or os.clock()))
+
+	local remaining = math.max(0, (expedition.phaseRemaining or 0) - sinceSync)
 	local duration = math.max(1, expedition.phaseDuration or 1)
 	self.clockLabel.Text = UIKit.formatClock(remaining)
 	self.phaseBar.set(duration - remaining, duration)
 
 	if expedition.nextShiftIn then
 		self.shiftLabel.Visible = true
-		local seconds = math.max(0, expedition.nextShiftIn)
+		local seconds = math.max(0, expedition.nextShiftIn - sinceSync)
 		self.shiftLabel.Text = ("SHIFT IN %s"):format(UIKit.formatClock(seconds))
 		self.shiftLabel.TextColor3 = seconds <= 30 and Theme.Color.Danger or Theme.Color.Warning
 	else
@@ -903,8 +910,14 @@ function ExpeditionHUD:refreshAbility()
 			and (role.ability.name and string.sub(role.ability.name, 1, 1) or "★")
 		or ("%s  [Q]"):format(label)
 
-	local remaining = role.cooldownRemaining or 0
+	--[[ AbilityState arrives only when the ability is used or the role refreshes,
+	     so `cooldownRemaining` is a snapshot that never decreases. Counting down
+	     locally from the stamp is what makes the shade actually drain instead of
+	     sitting at full width until the next push. ]]
+	local sinceSync = math.max(0, os.clock() - (role.syncedAt or os.clock()))
+	local remaining = math.max(0, (role.cooldownRemaining or 0) - sinceSync)
 	local total = math.max(1, role.ability.cooldown or 1)
+
 	if remaining > 0.05 then
 		self.abilityCooldown.Size = UDim2.fromScale(math.clamp(remaining / total, 0, 1), 1)
 		self.abilityButton.TextTransparency = 0.4

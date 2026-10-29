@@ -53,6 +53,44 @@ which is the argument for having them:
   no node definition listed that room, so nests would have silently spawned
   nothing. (Found by `ConfigIntegrity.spec`.)
 
+### Semantic review
+
+Static tools cannot find logic bugs, so the codebase also went through a
+six-dimension review — server authority and exploits, lifecycle state machines,
+concurrency and teardown, persistence and purchases, the client/server data
+contract, and cross-service nil safety — with every finding adversarially
+verified by three independent lenses before it counted. 18 raised, 16 survived,
+collapsing to **13 distinct root causes, all now fixed**.
+
+The five that mattered most, because each broke a feature the README advertises:
+
+| Bug | Consequence |
+|---|---|
+| `_extract` never banked ancient keys into `escape.keys` | **The escape objective was unreachable by playing well.** Keys landed in colony storage, which no gate code reads. Failing a run banked them correctly — exactly backwards |
+| `_die` cleared the downed entry before zeroing Health | The `HealthChanged` safety net re-downed the player it had just killed, the new timer expired, and `_die` ran again — **an infinite loop in which a player could never actually die**, so spectate and rescue were unreachable |
+| `leaveExpedition` had no `member.state` guard, and `_extract` never cleared `_byUser` | A settled player still resolved to a live session and could re-settle repeatedly. `settle` recomputes from `member.xpEarned`, which is never reset, so **every call re-granted the whole run's XP and another point of role mastery** |
+| A transient DataStore error latched the server into in-memory mode permanently while `save()` kept returning success | **Silent total data loss** for every player who joined afterwards, and `ProcessReceipt` acknowledging purchases that existed only in RAM |
+| `phaseEndsAt` was a server `os.clock()` value the HUD subtracted its own `os.clock()` from | `os.clock()` is process-relative, so **the phase clock and the shift countdown both displayed garbage** — the single most important number on screen |
+
+The other eight: a mid-expedition disconnect lost the whole recoverable haul
+(`InventoryService` cleared the bag before `ExpeditionService` could deposit it,
+because it connects `PlayerRemoving` first); disconnecting mid-load left the
+profile lock written and held; an in-flight autosave could re-acquire a released
+lock; `endSession` could rip a rejoined player out of their new expedition; a
+rescue within 2s of death reused the corpse that `_die` had already scheduled for
+destruction; unknown route names skipped the token bucket entirely, making
+unbounded log writes reachable from the client; the spectate overlay never
+cleared after a rescue; and the ability cooldown shade never drained.
+
+Two findings were **rejected** by verification — the agents that raised them were
+wrong, which is what the adversarial pass is for.
+
+**Important caveat:** these fixes are reasoned, not observed. Nine of the
+thirteen are in engine-dependent paths that the headless harness cannot reach, so
+they are covered by the regression steps in [SETUP.md](SETUP.md) §5 rather than
+by a test. The four that static tooling can police (the rate-limit gap, and the
+three config/contract issues) now have assertions.
+
 ---
 
 ## First Playable Milestone

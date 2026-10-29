@@ -332,6 +332,12 @@ function ExpeditionService:_sendIntoCave(player, session)
 end
 
 function ExpeditionService:_returnToColony(player)
+	--[[ Unbind FIRST. `sessionOf` is what every expedition route gates on, and
+	     while this mapping survives a settled player keeps resolving to a live
+	     session — which is how a settled member could re-enter settlement paths
+	     meant only for someone still underground. ]]
+	self._byUser[player.UserId] = nil
+
 	self.context.CaveService:unbindPlayer(player)
 	self.context.ColonyService:setZone(player, Enums.Zone.Colony)
 
@@ -371,10 +377,14 @@ function ExpeditionService:_advancePhase(session)
 	session.phaseEndsAt = os.clock() + session.difficulty.phaseDurations[nextPhase]
 
 	local players = self:playersIn(session)
+	--[[ A REMAINING DURATION, never a timestamp. os.clock() is process-relative,
+	     so a server clock value is meaningless on a client — subtracting the
+	     client's own os.clock() from it produces garbage. The client stamps its
+	     own receipt time and counts down locally. ]]
 	Net.fireList(players, Routes.Push.PhaseChanged, {
 		phase = nextPhase,
 		duration = session.difficulty.phaseDurations[nextPhase],
-		endsAt = session.phaseEndsAt,
+		remaining = session.difficulty.phaseDurations[nextPhase],
 	})
 
 	if nextPhase == Enums.Phase.Dusk then
@@ -531,6 +541,42 @@ function ExpeditionService:requestExtraction(player)
 	return self:_extract(player, session, member)
 end
 
+--[[
+	Move any ancient keys that came home out of colony storage and into
+	`profile.escape.keys`.
+
+	This has to happen on EVERY settlement path, not just the failure one.
+	`depositBag` puts keys into ordinary storage like any other resource, but
+	nothing reads storage for keys: ObjectiveService's gate checks the bag plus
+	`escape.keys`. Bank them here or a key is inert.
+
+	Getting this wrong is how extracting cleanly with a key left it unusable
+	while failing the run banked it properly — exactly backwards.
+]]
+function ExpeditionService:_bankAncientKeys(player, deposit)
+	local keys = (deposit and deposit.deposited and deposit.deposited[Enums.Resource.AncientKey]) or 0
+	if keys <= 0 then
+		return 0
+	end
+
+	local profile = self.context.DataService:get(player)
+	if not profile then
+		return 0
+	end
+
+	profile.escape.keys = (profile.escape.keys or 0) + keys
+
+	local storage = self.context.InventoryService:storageOf(player)
+	if storage then
+		local remaining = (storage.items[Enums.Resource.AncientKey] or 0) - keys
+		storage.items[Enums.Resource.AncientKey] = remaining > 0 and remaining or nil
+	end
+
+	self.context.DataService:markDirty(player)
+	log:info("banked %d ancient key(s) for %s", keys, player.Name)
+	return keys
+end
+
 function ExpeditionService:_extract(player, session, member)
 	member.state = Enums.MemberState.Extracted
 	member.extractedAt = os.clock()
@@ -540,6 +586,8 @@ function ExpeditionService:_extract(player, session, member)
 	     on. ]]
 	local bagBefore = Inventory.clone(self.context.InventoryService:bagOf(player))
 	local deposit = self.context.InventoryService:depositBag(player, nil)
+
+	self:_bankAncientKeys(player, deposit)
 
 	local results = self.context.RewardService:settle(player, session, {
 		outcome = "extracted",
@@ -607,6 +655,22 @@ function ExpeditionService:requestRescue(player, paid)
 	member.state = Enums.MemberState.Alive
 	member.rescued = true
 
+	--[[ A rescue always gets a FRESH body.
+
+	     `_die` zeroes the Humanoid and only destroys the character two seconds
+	     later, so for that window `player.Character` is still the corpse — a
+	     Humanoid at zero health. Reusing it would revive the player into a dead
+	     body, and the pending destroy would then remove it from under them,
+	     leaving an Alive member with no character for the rest of the run.
+
+	     Destroying it here also makes that pending task.delay a no-op, because
+	     it checks `character.Parent` before acting. ]]
+	local existing = player.Character
+	local existingHumanoid = existing and existing:FindFirstChildOfClass("Humanoid")
+	if existing and (not existingHumanoid or existingHumanoid.Health <= 0) then
+		existing:Destroy()
+	end
+
 	if not player.Character then
 		local ok, err = pcall(function()
 			player:LoadCharacter()
@@ -659,6 +723,17 @@ function ExpeditionService:leaveExpedition(player)
 		return { ok = false, reason = Enums.Reject.BadRequest }
 	end
 
+	--[[ Only someone still underground can abandon a run.
+
+	     Without this check an already-settled member could call this route
+	     repeatedly: `settle` recomputes its payout from `member.xpEarned`, which
+	     is never reset, so every call re-granted the entire run's XP and another
+	     point of role mastery. A player could extract normally and then level
+	     arbitrarily while a teammate was still below. ]]
+	if member.state ~= Enums.MemberState.Alive and member.state ~= Enums.MemberState.Downed then
+		return { ok = false, reason = Enums.Reject.Busy, detail = "already_settled" }
+	end
+
 	self:_settleFailure(player, session, member, "abandoned")
 	self:pushSession(session)
 	return { ok = true }
@@ -671,21 +746,7 @@ function ExpeditionService:_settleFailure(player, session, member, outcome)
 	local bagBefore = Inventory.clone(self.context.InventoryService:bagOf(player))
 	local deposit = self.context.InventoryService:depositBag(player, fraction)
 
-	--[[ Ancient keys found this run are banked here rather than being left in a
-	     bag that no longer exists, so escape progress survives a failed run. ]]
-	local profile = self.context.DataService:get(player)
-	if profile then
-		local keys = deposit.deposited[Enums.Resource.AncientKey] or 0
-		if keys > 0 then
-			profile.escape.keys = (profile.escape.keys or 0) + keys
-			local storage = self.context.InventoryService:storageOf(player)
-			if storage then
-				local remaining = (storage.items[Enums.Resource.AncientKey] or 0) - keys
-				storage.items[Enums.Resource.AncientKey] = remaining > 0 and remaining or nil
-			end
-			self.context.DataService:markDirty(player)
-		end
-	end
+	self:_bankAncientKeys(player, deposit)
 
 	member.state = (outcome == "abandoned") and Enums.MemberState.Extracted or Enums.MemberState.Dead
 
@@ -724,8 +785,13 @@ function ExpeditionService:endSession(session, outcome)
 			elseif member.state == Enums.MemberState.Dead then
 				self:_settleFailure(player, session, member, "died")
 			end
-			self._byUser[userId] = nil
-		else
+		end
+
+		--[[ Only clear the mapping if it still points at THIS session. A player
+		     can disconnect mid-run, rejoin, and start a fresh expedition before
+		     this one times out; blindly nilling their entry would rip them out
+		     of the new run and lose that bag. ]]
+		if self._byUser[userId] == session.id then
 			self._byUser[userId] = nil
 		end
 	end
@@ -797,7 +863,10 @@ function ExpeditionService:snapshot(session, viewer)
 		difficultyName = session.difficulty.name,
 		seed = session.seed,
 		phase = session.phase,
-		phaseEndsAt = session.phaseEndsAt,
+		--[[ Durations, not timestamps: see the note in _advancePhase. The client
+		     interpolates between these syncs (every CLOCK_TICK) from its own
+		     clock. ]]
+		phaseRemaining = math.max(0, (session.phaseEndsAt or 0) - os.clock()),
 		phaseDuration = session.difficulty.phaseDurations[session.phase],
 		nextShiftIn = session.nextShiftAt and math.max(0, session.nextShiftAt - os.clock()) or nil,
 		shiftsApplied = session.shiftsApplied,
@@ -837,7 +906,7 @@ function ExpeditionService:start()
 
 	Net.handle(Routes.Request.LeaveExpedition, function(player)
 		return self:leaveExpedition(player)
-	end)
+	end, Routes.limitsFor(Routes.Request.LeaveExpedition))
 
 	Net.handle(Routes.Request.RequestExtraction, function(player)
 		return self:requestExtraction(player)
@@ -886,7 +955,11 @@ function ExpeditionService:start()
 				     on leave carries whatever was banked. ]]
 				if member.state == Enums.MemberState.Alive or member.state == Enums.MemberState.Downed then
 					local fraction = session.difficulty.lootKeptOnDeathFraction
-					self.context.InventoryService:depositBag(player, fraction)
+					local deposit = self.context.InventoryService:depositBag(player, fraction)
+					--[[ Keys survive a disconnect like any other failure, so
+					     they have to be banked here too or they land in storage
+					     where nothing reads them. ]]
+					self:_bankAncientKeys(player, deposit)
 				end
 				member.state = Enums.MemberState.Dead
 			end

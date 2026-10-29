@@ -13,6 +13,8 @@ can get back before the tunnels rearrange themselves around you.
 > stylua --check src  clean
 > lune run tools/run-tests    129 passed, 0 failed
 > lune run tools/load-check   67 of 67 modules load
+> lune run tools/ref-check    3,820 constant references, 0 dangling
+> lune run tools/call-check   313 cross-service calls, 0 broken
 > ```
 >
 > The pure logic is genuinely verified — the cave generator and the night maze
@@ -98,6 +100,8 @@ tools/                 Lune harnesses — no Studio required
   harness.luau         fake instance tree over the real files
   run-tests.luau       the 129 specs, headless, exits non-zero on failure
   load-check.luau      requires all 67 modules to prove they load
+  ref-check.luau       every Enums./Routes./Theme. reference resolves
+  call-check.luau      every self.context.X:method() names a real method
 ```
 
 Two architectural choices do most of the work:

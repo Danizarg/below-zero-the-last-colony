@@ -324,11 +324,11 @@ a layout and replay it.
 
 ## 7. The checks you can run without Studio
 
-All four run from the repository root and are currently green. Run them before
-a commit; the Lune ones exit non-zero on failure, so they work in CI.
+Six checks, all run from the repository root, all currently green. Run them
+before a commit; the Lune ones exit non-zero on failure, so they work in CI.
 
 ```bash
-lune run tools/run-tests && lune run tools/load-check && selene src && stylua --check src
+lune run tools/run-tests && lune run tools/load-check && lune run tools/ref-check && lune run tools/call-check && selene src && stylua --check src
 ```
 
 ### `lune run tools/run-tests`
@@ -359,6 +359,27 @@ Worth running separately because Selene proves code *parses*, not that it
 a service captured at require time that does not exist all parse perfectly and
 then fail the instant Studio touches them — and since the server bootstrap
 requires everything at startup, one of those takes the whole game down.
+
+### `lune run tools/ref-check`
+
+Scans all 76 files for dotted constant references — `Enums.Reject.TooFar`,
+`Routes.Push.ObjectiveSync`, `Theme.Color.Accent` — and looks each one up in the
+real loaded module. **3,820 references, all resolve.**
+
+Luau is dynamically typed, so `Routes.Push.ObjectiveSyncc` is not an error: it is
+`nil`. The packet gets sent under a nil route name, the client never receives it,
+and nothing warns. In a codebase this config-heavy that is the likeliest silent
+bug there is.
+
+### `lune run tools/call-check`
+
+Loads all 16 services and resolves every `self.context.X:method(...)` call site
+against the real service. **313 calls, all name a real method**, none passing
+more arguments than the method declares.
+
+Services reach each other through a dynamic registry, so a typo there is a
+runtime `attempt to call a nil value` that only fires when that exact line runs
+— possibly minutes into an expedition.
 
 ### `selene src`
 

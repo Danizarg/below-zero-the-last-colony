@@ -23,6 +23,8 @@ The toolchain is installed, so these all genuinely ran:
 | Formatting | `stylua --check src` | **clean** (44 files were reformatted to get there) |
 | Spec suite, headless | `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
 | Every module loads | `lune run tools/load-check` | **67 of 67 ModuleScripts load** |
+| Every constant reference resolves | `lune run tools/ref-check` | **3,820 references, 0 dangling** — no mistyped enum, route or theme token anywhere |
+| Every cross-service call is real | `lune run tools/call-check` | **313 calls, 0 broken** — no typo'd `self.context.X:method()`, none over-applied |
 | Structural check | `node` heuristic over block/bracket balance | **0 problems** |
 
 **What that does and does not mean.** The pure logic is genuinely tested: the

@@ -460,9 +460,20 @@ sim.newInstance = newInstance
 -- Virtual clock and scheduler
 -- ─────────────────────────────────────────────────────────────────────────────
 
+--[[ Virtual time does NOT start at zero.
+
+     Several services compare `os.clock()` against a "last done at" field that
+     defaults to 0 — a swing cooldown, a rate limit, a respawn timer. On a real
+     server os.clock() is already well past any of those gaps by the time a
+     player can act, so those comparisons pass. Starting the simulation at zero
+     would make the first swing of every test look like it was on cooldown,
+     which is an artefact of the harness rather than anything about the game.
+     Starting at a plausible uptime removes that whole class of false failure. ]]
+local SIM_START_CLOCK = 1000
+
 local function newScheduler()
 	local scheduler = {
-		now = 0,
+		now = SIM_START_CLOCK,
 		epoch = 1700000000,
 		timers = {},
 		deferred = {},

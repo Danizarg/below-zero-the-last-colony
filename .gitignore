@@ -26,3 +26,8 @@ Desktop.ini
 
 # Local-only overrides (see src/shared/Config/LocalOverrides.example.lua)
 src/shared/Config/LocalOverrides.lua
+
+# Claude Code session scratch: agent worktrees and local session state.
+# These are temporary clones of this repository; committing them records a
+# gitlink to a commit nobody else can resolve.
+.claude/

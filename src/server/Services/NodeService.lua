@@ -43,7 +43,7 @@ end
 -- Spawning
 -- ─────────────────────────────────────────────────────────────────────────────
 
-local function buildNodeModel(def, origin, parent, biome)
+local function buildNodeModel(def, origin, parent, _biome)
 	local model = PartFactory.model(def.name, nil)
 
 	local body = PartFactory.block({
@@ -63,7 +63,12 @@ local function buildNodeModel(def, origin, parent, biome)
 			name = "Chunk",
 			size = def.size * 0.4,
 			cframe = CFrame.new(
-				origin + Vector3.new(math.cos(angle) * def.size.X * 0.5, def.size.Y * 0.2, math.sin(angle) * def.size.Z * 0.5)
+				origin
+					+ Vector3.new(
+						math.cos(angle) * def.size.X * 0.5,
+						def.size.Y * 0.2,
+						math.sin(angle) * def.size.Z * 0.5
+					)
 			) * CFrame.Angles(0, angle, 0.2),
 			color = def.color,
 			material = def.material,
@@ -212,9 +217,7 @@ function NodeService:_depleteNode(node, difficulty)
 			if part:IsA("BasePart") then
 				part.Transparency = 0.85
 				part.CanCollide = false
-			elseif part:IsA("ProximityPrompt") then
-				part.Enabled = false
-			elseif part:IsA("PointLight") then
+			elseif part:IsA("ProximityPrompt") or part:IsA("PointLight") then
 				part.Enabled = false
 			end
 		end
@@ -242,11 +245,12 @@ function NodeService:_respawnNode(node)
 	if node.model then
 		for _, part in ipairs(node.model:GetDescendants()) do
 			if part:IsA("BasePart") then
-				part.Transparency = part.Name == "NodeGlow" and 0 or 0
+				part.Transparency = 0
+				--[[ Only the solid body blocks movement. The decorative chunks
+				     and the glow were created non-colliding and must stay that
+				     way, or a respawned node would grow an invisible wall. ]]
 				part.CanCollide = part.Name == "Body"
-			elseif part:IsA("ProximityPrompt") then
-				part.Enabled = true
-			elseif part:IsA("PointLight") then
+			elseif part:IsA("ProximityPrompt") or part:IsA("PointLight") then
 				part.Enabled = true
 			end
 		end

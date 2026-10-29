@@ -231,7 +231,8 @@ function SettingsPanel.render(store, container)
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = info,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	local lines = {
 		("Version %s"):format(store.state.version or GameConfig.Version),
@@ -254,7 +255,8 @@ function SettingsPanel.render(store, container)
 		alignY = Enum.TextYAlignment.Top,
 		automaticSize = Enum.AutomaticSize.Y,
 		parent = info,
-	}).LayoutOrder = 2
+	}).LayoutOrder =
+		2
 end
 
 return SettingsPanel

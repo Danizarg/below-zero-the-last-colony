@@ -270,7 +270,8 @@ function ExpeditionHUD:_buildTeam()
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = self.teamCard,
-	}).LayoutOrder = 0
+	}).LayoutOrder =
+		0
 end
 
 function ExpeditionHUD:_teamRow(member)
@@ -385,7 +386,8 @@ function ExpeditionHUD:_buildObjectives()
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = self.objectiveCard,
-	}).LayoutOrder = 0
+	}).LayoutOrder =
+		0
 
 	self.explorationLabel = UIKit.label({
 		name = "Exploration",
@@ -615,7 +617,8 @@ function ExpeditionHUD:_buildOverlays()
 		font = Theme.Font.Display,
 		align = Enum.TextXAlignment.Center,
 		parent = panel,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	--[[ Why you died, in plain words. The brief asks that players always
 	     understand their death, and the server sends the damage breakdown for
@@ -744,7 +747,10 @@ function ExpeditionHUD:refreshClock()
 	if expedition.roomName then
 		table.insert(parts, expedition.roomName)
 	end
-	table.insert(parts, ("%s · shift %d"):format(expedition.difficultyName or "?", expedition.shiftsApplied or 0))
+	table.insert(
+		parts,
+		("%s · shift %d"):format(expedition.difficultyName or "?", expedition.shiftsApplied or 0)
+	)
 	self.locationLabel.Text = table.concat(parts, "  ·  ")
 
 	self.extractionLabel.Text = expedition.atExtraction and "◆ EXTRACTION READY — hold E" or ""
@@ -860,13 +866,17 @@ end
 
 function ExpeditionHUD:refreshBag()
 	local state = self.store.state
-	self.bagBar.set(state.bagUsed or 0, math.max(1, state.bagCapacity or 1), ("%d / %d kg"):format(
-		math.floor(state.bagUsed or 0),
-		math.floor(state.bagCapacity or 0)
-	))
+	self.bagBar.set(
+		state.bagUsed or 0,
+		math.max(1, state.bagCapacity or 1),
+		("%d / %d kg"):format(math.floor(state.bagUsed or 0), math.floor(state.bagCapacity or 0))
+	)
 
 	local fraction = (state.bagUsed or 0) / math.max(1, state.bagCapacity or 1)
-	self.bagBar.setColor(fraction > 0.95 and Theme.Color.Danger or (fraction > 0.8 and Theme.Color.Warning or Theme.Color.Accent))
+	self.bagBar.setColor(
+		fraction > 0.95 and Theme.Color.Danger
+			or (fraction > 0.8 and Theme.Color.Warning or Theme.Color.Accent)
+	)
 
 	local tool = ResourceConfig.Tools[state.equippedTool]
 	if tool then
@@ -889,7 +899,8 @@ function ExpeditionHUD:refreshAbility()
 	end
 
 	local label = role.ability.name or "Ability"
-	self.abilityButton.Text = self.isTouch and (role.ability.name and string.sub(role.ability.name, 1, 1) or "★")
+	self.abilityButton.Text = self.isTouch
+			and (role.ability.name and string.sub(role.ability.name, 1, 1) or "★")
 		or ("%s  [Q]"):format(label)
 
 	local remaining = role.cooldownRemaining or 0
@@ -926,8 +937,7 @@ function ExpeditionHUD:refreshSpectate()
 		self.rescueNote.Text = "A free rescue puts you back at the tunnel mouth with your bag."
 	else
 		UIKit.setEnabled(self.rescueButton, false, "No free rescue left")
-		self.rescueNote.Text =
-			"Your free rescue is spent. You will return to the colony when the expedition ends, "
+		self.rescueNote.Text = "Your free rescue is spent. You will return to the colony when the expedition ends, "
 			.. "keeping part of your haul and all of your keys."
 	end
 end

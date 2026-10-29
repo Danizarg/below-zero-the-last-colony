@@ -170,7 +170,7 @@ function MonsterService:populate(cave, difficulty)
 			continue
 		end
 
-		for index = 1, whole do
+		for _ = 1, whole do
 			local def = rng:pickWeighted(candidates, function(entry)
 				return entry.spawnWeight
 			end)
@@ -202,7 +202,10 @@ function MonsterService:nightSurge(session)
 
 	local def = MonsterConfig.get(Enums.Monster.CaveCrawler)
 	local extra = math.floor(
-		#cave.layout.order * 0.15 * session.difficulty.monsterCountMultiplier * session.difficulty.nightMonsterSurgeMultiplier
+		#cave.layout.order
+			* 0.15
+			* session.difficulty.monsterCountMultiplier
+			* session.difficulty.nightMonsterSurgeMultiplier
 	)
 	if extra <= 0 then
 		return 0
@@ -278,7 +281,8 @@ function MonsterService:trySpawnStalker(session)
 		return false
 	end
 
-	local monster = self:_spawn(cave, def, key, centre + Vector3.new(0, def.body.torso.Y, 0), session.difficulty)
+	local monster =
+		self:_spawn(cave, def, key, centre + Vector3.new(0, def.body.torso.Y, 0), session.difficulty)
 	if not monster then
 		return false
 	end
@@ -429,7 +433,11 @@ function MonsterService:_tick()
 		local candidates = {}
 		for _, player in ipairs(self.context.ExpeditionService:playersIn(session)) do
 			local member = session.members[player.UserId]
-			if member and member.state ~= Enums.MemberState.Dead and member.state ~= Enums.MemberState.Extracted then
+			if
+				member
+				and member.state ~= Enums.MemberState.Dead
+				and member.state ~= Enums.MemberState.Extracted
+			then
 				if player.Character and player.Character.PrimaryPart then
 					table.insert(candidates, player)
 				end

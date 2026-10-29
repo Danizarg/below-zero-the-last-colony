@@ -56,7 +56,7 @@ function RoleSelect.create(shell, store)
 	}
 end
 
-function RoleSelect.render(shell, store, container)
+function RoleSelect.render(_shell, store, container)
 	clearChildren(container)
 
 	local roles = store.state.roles or {}
@@ -77,7 +77,8 @@ function RoleSelect.render(shell, store, container)
 			wrapped = true,
 			alignY = Enum.TextYAlignment.Top,
 			parent = container,
-		}).LayoutOrder = 0
+		}).LayoutOrder =
+			0
 	end
 
 	for index, role in ipairs(roles) do
@@ -105,7 +106,8 @@ function RoleSelect.render(shell, store, container)
 			textSize = Theme.Text.SubheadingSize,
 			font = Theme.Font.Display,
 			parent = card,
-		}).LayoutOrder = 1
+		}).LayoutOrder =
+			1
 
 		UIKit.label({
 			name = "Tagline",
@@ -114,7 +116,8 @@ function RoleSelect.render(shell, store, container)
 			textColor = Theme.Color.TextFaint,
 			textSize = Theme.Text.TinySize,
 			parent = card,
-		}).LayoutOrder = 2
+		}).LayoutOrder =
+			2
 
 		UIKit.label({
 			name = "Description",
@@ -126,7 +129,8 @@ function RoleSelect.render(shell, store, container)
 			alignY = Enum.TextYAlignment.Top,
 			automaticSize = Enum.AutomaticSize.Y,
 			parent = card,
-		}).LayoutOrder = 3
+		}).LayoutOrder =
+			3
 
 		-- Ability.
 		UIKit.label({
@@ -143,7 +147,8 @@ function RoleSelect.render(shell, store, container)
 			alignY = Enum.TextYAlignment.Top,
 			automaticSize = Enum.AutomaticSize.Y,
 			parent = card,
-		}).LayoutOrder = 4
+		}).LayoutOrder =
+			4
 
 		-- Passives.
 		local passiveText = {}
@@ -161,7 +166,8 @@ function RoleSelect.render(shell, store, container)
 				alignY = Enum.TextYAlignment.Top,
 				automaticSize = Enum.AutomaticSize.Y,
 				parent = card,
-			}).LayoutOrder = 5
+			}).LayoutOrder =
+				5
 		end
 
 		-- Mastery.
@@ -199,7 +205,8 @@ function RoleSelect.render(shell, store, container)
 				alignY = Enum.TextYAlignment.Top,
 				automaticSize = Enum.AutomaticSize.Y,
 				parent = card,
-			}).LayoutOrder = 7
+			}).LayoutOrder =
+				7
 		end
 
 		local button = UIKit.primaryButton({

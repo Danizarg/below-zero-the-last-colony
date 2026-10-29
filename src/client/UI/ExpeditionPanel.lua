@@ -97,7 +97,8 @@ local function renderDifficulty(store, container, party)
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = card,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	local isLeader = party and party.isLeader
 	local selected = party and party.difficultyId or DifficultyConfig.Default
@@ -158,16 +159,15 @@ local function renderDifficulty(store, container, party)
 			name = "Facts",
 			size = UDim2.new(1, -Theme.Space.XL, 0, 32),
 			position = UDim2.fromOffset(Theme.Space.M, 46),
-			text = ("Run %s  ·  %d rooms  ·  %d-room shifts every %ds  ·  %ds to revive\nKeep %d%% of your haul if you die, %d%% if you run out of time")
-				:format(
-					UIKit.formatClock(total),
-					mode.roomCount,
-					mode.shiftCount,
-					mode.shiftIntervalSeconds,
-					mode.downedSeconds,
-					math.floor(mode.lootKeptOnDeathFraction * 100),
-					math.floor(mode.lootKeptOnTimeoutFraction * 100)
-				),
+			text = ("Run %s  ·  %d rooms  ·  %d-room shifts every %ds  ·  %ds to revive\nKeep %d%% of your haul if you die, %d%% if you run out of time"):format(
+				UIKit.formatClock(total),
+				mode.roomCount,
+				mode.shiftCount,
+				mode.shiftIntervalSeconds,
+				mode.downedSeconds,
+				math.floor(mode.lootKeptOnDeathFraction * 100),
+				math.floor(mode.lootKeptOnTimeoutFraction * 100)
+			),
 			textColor = Theme.Color.TextFaint,
 			textSize = Theme.Text.TinySize,
 			wrapped = true,
@@ -193,12 +193,14 @@ local function renderParty(store, container, party)
 	UIKit.label({
 		name = "Heading",
 		size = UDim2.new(1, 0, 0, 18),
-		text = party and ("PARTY  ·  CODE %s  ·  %d/%d"):format(party.code, party.size, party.maxSize) or "PARTY",
+		text = party and ("PARTY  ·  CODE %s  ·  %d/%d"):format(party.code, party.size, party.maxSize)
+			or "PARTY",
 		textColor = Theme.Color.Accent,
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = card,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	if not party then
 		UIKit.label({
@@ -208,7 +210,8 @@ local function renderParty(store, container, party)
 			textColor = Theme.Color.TextMuted,
 			textSize = Theme.Text.SmallSize,
 			parent = card,
-		}).LayoutOrder = 2
+		}).LayoutOrder =
+			2
 	else
 		for index, member in ipairs(party.members or {}) do
 			UIKit.label({
@@ -224,7 +227,8 @@ local function renderParty(store, container, party)
 				textColor = member.ready and Theme.Color.Success or Theme.Color.TextMuted,
 				textSize = Theme.Text.SmallSize,
 				parent = card,
-			}).LayoutOrder = 1 + index
+			}).LayoutOrder = 1
+				+ index
 		end
 
 		local controls = UIKit.frame({
@@ -248,7 +252,8 @@ local function renderParty(store, container, party)
 					difficultyId = party.difficultyId,
 				})
 			end,
-		}).LayoutOrder = 1
+		}).LayoutOrder =
+			1
 
 		UIKit.button({
 			name = "Leave",
@@ -259,7 +264,8 @@ local function renderParty(store, container, party)
 			onClick = function()
 				Net.request(Routes.Request.LeaveParty)
 			end,
-		}).LayoutOrder = 2
+		}).LayoutOrder =
+			2
 
 		UIKit.button({
 			name = "Ready",
@@ -277,7 +283,8 @@ local function renderParty(store, container, party)
 				end
 				Net.request(Routes.Request.SetReady, { ready = not (me and me.ready) })
 			end,
-		}).LayoutOrder = 3
+		}).LayoutOrder =
+			3
 
 		-- Public listing, so a solo player can find a group.
 		local listing = party.publicParties or {}
@@ -290,7 +297,8 @@ local function renderParty(store, container, party)
 				textSize = Theme.Text.TinySize,
 				font = Theme.Font.Heading,
 				parent = card,
-			}).LayoutOrder = 60
+			}).LayoutOrder =
+				60
 
 			for index, open in ipairs(listing) do
 				if open.code ~= party.code then
@@ -348,7 +356,8 @@ local function renderSupplies(store, container, state)
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = card,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	local any = false
 	local index = 1
@@ -377,7 +386,8 @@ local function renderSupplies(store, container, state)
 			})
 
 			local function setWant(value)
-				state.supplies[consumableId] = math.clamp(value, 0, math.min(held, GameConfig.Inventory.MaxSuppliesPerType))
+				state.supplies[consumableId] =
+					math.clamp(value, 0, math.min(held, GameConfig.Inventory.MaxSuppliesPerType))
 				label.Text = ("%s %s   (%d in storage)  →  taking %d"):format(
 					def.icon,
 					def.name,
@@ -422,7 +432,8 @@ local function renderSupplies(store, container, state)
 			wrapped = true,
 			alignY = Enum.TextYAlignment.Top,
 			parent = card,
-		}).LayoutOrder = 2
+		}).LayoutOrder =
+			2
 	end
 end
 
@@ -459,7 +470,8 @@ function ExpeditionPanel.render(shell, store, container, state)
 		textColor = Theme.Color.TextMuted,
 		textSize = Theme.Text.SmallSize,
 		parent = container,
-	}).LayoutOrder = 10
+	}).LayoutOrder =
+		10
 
 	local launch = UIKit.primaryButton({
 		name = "Launch",
@@ -521,7 +533,8 @@ function ExpeditionPanel.render(shell, store, container, state)
 		wrapped = true,
 		alignY = Enum.TextYAlignment.Top,
 		parent = container,
-	}).LayoutOrder = 12
+	}).LayoutOrder =
+		12
 end
 
 return ExpeditionPanel

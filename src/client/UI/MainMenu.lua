@@ -28,7 +28,7 @@ local ENTRIES = {
 	{ id = "settings", label = "Settings", icon = "⚙", blurb = "Audio and accessibility." },
 }
 
-function MainMenu.create(shell, store)
+function MainMenu.create(shell, _store)
 	local root = UIKit.frame({
 		name = "MainMenu",
 		size = UDim2.fromScale(1, 1),
@@ -71,7 +71,8 @@ function MainMenu.create(shell, store)
 		font = Theme.Font.Display,
 		align = Enum.TextXAlignment.Center,
 		parent = card,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	UIKit.label({
 		name = "Subtitle",
@@ -82,7 +83,8 @@ function MainMenu.create(shell, store)
 		font = Theme.Font.Heading,
 		align = Enum.TextXAlignment.Center,
 		parent = card,
-	}).LayoutOrder = 2
+	}).LayoutOrder =
+		2
 
 	UIKit.label({
 		name = "Pitch",
@@ -95,7 +97,8 @@ function MainMenu.create(shell, store)
 		wrapped = true,
 		alignY = Enum.TextYAlignment.Top,
 		parent = card,
-	}).LayoutOrder = 3
+	}).LayoutOrder =
+		3
 
 	UIKit.spacer(card, Theme.Space.M, 4)
 

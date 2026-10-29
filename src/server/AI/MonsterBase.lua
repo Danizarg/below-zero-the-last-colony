@@ -220,7 +220,11 @@ function Monster:destroy()
 end
 
 function Monster:isAlive()
-	return not self.dead and self.humanoid and self.humanoid.Health > 0 and self.model and self.model.Parent ~= nil
+	return not self.dead
+		and self.humanoid
+		and self.humanoid.Health > 0
+		and self.model
+		and self.model.Parent ~= nil
 end
 
 function Monster:position()
@@ -355,7 +359,15 @@ function Monster:onDamaged(amount, byPlayer)
 			end
 		end
 	else
-		self.interest = math.max(0, self.interest - (self.def.damageInterestLoss or 0.3))
+		--[[ An unkillable monster loses INTEREST rather than health, and how
+		     much depends on how hard it was hit. A flat loss per hit would make
+		     bare hands exactly as good as an iron blade at driving the Stalker
+		     off, which would make the weapon choice meaningless in the one
+		     encounter where running is the answer. ]]
+		local reference = self.def.interestLossReferenceDamage or 26
+		local weight = math.clamp(amount / reference, 0.3, 1.5)
+		self.interest = math.max(0, self.interest - (self.def.damageInterestLoss or 0.3) * weight)
+
 		if self.interest < MonsterConfig.StalkerInterest.InvestigateThreshold then
 			self.breakOffUntil = os.clock() + (self.def.breakOffCooldown or 20)
 			self.target = nil
@@ -436,7 +448,8 @@ function Monster:_navigateTo(position)
 
 	if self.pathWaypoints and self.pathWaypoints[self.pathIndex] then
 		local waypoint = self.pathWaypoints[self.pathIndex]
-		local flat = Vector3.new(waypoint.Position.X - self:position().X, 0, waypoint.Position.Z - self:position().Z)
+		local flat =
+			Vector3.new(waypoint.Position.X - self:position().X, 0, waypoint.Position.Z - self:position().Z)
 		if flat.Magnitude <= MonsterConfig.Pathfinding.WaypointReachedRadius then
 			self.pathIndex += 1
 		end
@@ -454,7 +467,11 @@ function Monster:_wander(rng)
 	end
 
 	local arrived = not self.wanderTarget
-		or (Vector3.new(self.wanderTarget.X, 0, self.wanderTarget.Z) - Vector3.new(self:position().X, 0, self:position().Z)).Magnitude
+		or (Vector3.new(self.wanderTarget.X, 0, self.wanderTarget.Z) - Vector3.new(
+				self:position().X,
+				0,
+				self:position().Z
+			)).Magnitude
 			< 4
 
 	if arrived then
@@ -462,7 +479,8 @@ function Monster:_wander(rng)
 		self.pauseUntil = now + rng:nextRange(pause[1], pause[2])
 		local angle = rng:nextRange(0, math.pi * 2)
 		local distance = rng:nextRange(6, self.def.patrolRadius)
-		self.wanderTarget = self.homePosition + Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
+		self.wanderTarget = self.homePosition
+			+ Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
 	else
 		self:_navigateTo(self.wanderTarget)
 	end

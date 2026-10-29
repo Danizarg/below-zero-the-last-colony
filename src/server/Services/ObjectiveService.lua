@@ -555,7 +555,7 @@ end
 
 --[[ Examining the gate reports what it needs. Separating "look" from "unlock"
      means a player can learn the requirement without spending anything. ]]
-function ObjectiveService:examineGate(player, session, entry)
+function ObjectiveService:examineGate(player, session, _entry)
 	local stage, unlocked = self:stageFor(player)
 	local profile = self.context.DataService:get(player)
 	if not profile then

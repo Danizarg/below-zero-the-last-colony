@@ -128,7 +128,8 @@ function BuildingService:effectsFor(player)
 			     entirely, which would feel like a punishment spiral. ]]
 			local condition = 1
 			if levelData.maxHealth and levelData.maxHealth > 0 then
-				condition = math.clamp((placement.health or levelData.maxHealth) / levelData.maxHealth, 0.35, 1)
+				condition =
+					math.clamp((placement.health or levelData.maxHealth) / levelData.maxHealth, 0.35, 1)
 			end
 
 			effects.population += math.floor((source.population or 0) * condition)

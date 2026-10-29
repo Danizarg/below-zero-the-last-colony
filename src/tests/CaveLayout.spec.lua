@@ -89,7 +89,12 @@ return function(suite)
 				if not RoomRules.isShiftProtected(cell.kind) then
 					expect.truthy(
 						RoomRules.doorsSatisfy(cell.kind, cell.doors),
-						("cell %s is %s with %d doors (seed %d)"):format(key, cell.kind, doorCount(cell), seed)
+						("cell %s is %s with %d doors (seed %d)"):format(
+							key,
+							cell.kind,
+							doorCount(cell),
+							seed
+						)
 					)
 				end
 			end
@@ -163,7 +168,11 @@ return function(suite)
 		for seed = 1, SWEEP do
 			local layout = generate(seed * 17 + 5)
 			local reached = CaveLayout.computeDepths(layout, layout.entranceKey)
-			expect.equal(reached, #layout.order, ("seed %d left %d rooms unreachable"):format(seed, #layout.order - reached))
+			expect.equal(
+				reached,
+				#layout.order,
+				("seed %d left %d rooms unreachable"):format(seed, #layout.order - reached)
+			)
 		end
 	end)
 
@@ -383,7 +392,11 @@ return function(suite)
 		end
 
 		expect.atLeast(checked, 20, "the test did not exercise enough rooms to be meaningful")
-		expect.equal(failures, 0, ("%d of %d occupied rooms were left with one exit"):format(failures, checked))
+		expect.equal(
+			failures,
+			0,
+			("%d of %d occupied rooms were left with one exit"):format(failures, checked)
+		)
 	end)
 
 	suite:test("a shift reports only cells that exist", function(expect)
@@ -409,7 +422,11 @@ return function(suite)
 				changedAtLeastOnce += 1
 			end
 		end
-		expect.atLeast(changedAtLeastOnce, 38, ("only %d of 40 shifts changed anything"):format(changedAtLeastOnce))
+		expect.atLeast(
+			changedAtLeastOnce,
+			38,
+			("only %d of 40 shifts changed anything"):format(changedAtLeastOnce)
+		)
 	end)
 
 	suite:test("shiftsApplied counts up", function(expect)

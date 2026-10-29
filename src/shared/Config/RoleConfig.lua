@@ -282,7 +282,11 @@ RoleConfig.Roles = {
 
 		passives = {
 			{ id = "field_repair", name = "Field Repair", description = "Repair tools mid-expedition." },
-			{ id = "mechanist", name = "Mechanist", description = "Mechanical puzzles show their solution order." },
+			{
+				id = "mechanist",
+				name = "Mechanist",
+				description = "Mechanical puzzles show their solution order.",
+			},
 		},
 
 		ability = {
@@ -346,7 +350,12 @@ RoleConfig.Roles = {
 
 		upgrades = {
 			{ mastery = 5, id = "res_relic_1", name = "Careful Hands", effect = { harvestMult = 0.2 } },
-			{ mastery = 10, id = "res_cd_1", name = "Pattern Recognition", effect = { abilityCooldown = -20 } },
+			{
+				mastery = 10,
+				id = "res_cd_1",
+				name = "Pattern Recognition",
+				effect = { abilityCooldown = -20 },
+			},
 		},
 	},
 }
@@ -385,15 +394,10 @@ function RoleConfig.resolve(roleId, mastery)
 	local role = RoleConfig.get(roleId) or RoleConfig.get(RoleConfig.Default)
 	mastery = math.max(0, math.floor(tonumber(mastery) or 0))
 
-	local stats = {}
-	for key, value in pairs(role.stats) do
-		stats[key] = value
-	end
-
-	local ability = {}
-	for key, value in pairs(role.ability) do
-		ability[key] = value
-	end
+	--[[ Shallow copies, so mastery upgrades below mutate the result rather than
+	     the config. Both tables are flat, so a shallow clone is the whole job. ]]
+	local stats = table.clone(role.stats)
+	local ability = table.clone(role.ability)
 
 	local extras = { healingMult = 1, durabilityLossMult = 1 }
 	for _, passive in ipairs(role.passives) do

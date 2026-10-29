@@ -208,7 +208,8 @@ function UIKit.setEnabled(button, enabled, disabledText)
 end
 
 function UIKit.tween(instance, goal, duration, style)
-	local info = TweenInfo.new(duration or Theme.Tween.Normal, style or Theme.Tween.Easing, Theme.Tween.Direction)
+	local info =
+		TweenInfo.new(duration or Theme.Tween.Normal, style or Theme.Tween.Easing, Theme.Tween.Direction)
 	local tween = TweenService:Create(instance, info, goal)
 	tween:Play()
 	return tween
@@ -401,13 +402,7 @@ end
 function UIKit.panel(props)
 	local root = UIKit.frame({
 		name = props.name or "Panel",
-		size = props.size
-			or UDim2.new(
-				Theme.Layout.PanelWidth,
-				0,
-				Theme.Layout.PanelHeight,
-				0
-			),
+		size = props.size or UDim2.new(Theme.Layout.PanelWidth, 0, Theme.Layout.PanelHeight, 0),
 		position = UDim2.fromScale(0.5, 0.5),
 		anchor = Vector2.new(0.5, 0.5),
 		color = Theme.Color.Panel,

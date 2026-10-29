@@ -196,7 +196,8 @@ function Notifications:toast(payload)
 		font = Theme.Font.Heading,
 		truncate = true,
 		parent = content,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	if payload.body and payload.body ~= "" then
 		local body = UIKit.label({
@@ -221,7 +222,8 @@ function Notifications:toast(payload)
 			textColor = Theme.Color.TextFaint,
 			textSize = Theme.Text.TinySize,
 			parent = content,
-		}).LayoutOrder = 3
+		}).LayoutOrder =
+			3
 	end
 
 	--[[ An invite toast gets a join button, because an invite you cannot accept
@@ -370,7 +372,7 @@ function Notifications:_wire()
 		self:toast({
 			kind = "success",
 			title = payload.title or "Discovery",
-			body = payload.cellKey and ("Marked on your map.") or nil,
+			body = payload.cellKey and "Marked on your map." or nil,
 		})
 	end)
 	self.store.teammateDowned:Connect(function(payload)

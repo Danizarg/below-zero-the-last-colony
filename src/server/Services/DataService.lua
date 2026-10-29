@@ -301,12 +301,7 @@ function DataService:load(player)
 	self._profiles[userId] = entry
 	self._loading[userId] = nil
 
-	log:info(
-		"loaded profile for %s (%d)%s",
-		player.Name,
-		userId,
-		entry.readOnly and " [read-only]" or ""
-	)
+	log:info("loaded profile for %s (%d)%s", player.Name, userId, entry.readOnly and " [read-only]" or "")
 	self.profileLoaded:Fire(player, entry)
 	return entry
 end
@@ -424,11 +419,7 @@ function DataService:save(player, options)
 	end
 
 	if result == nil then
-		log:warn(
-			"save aborted for %s (%d): the profile lock is held by another session",
-			player.Name,
-			userId
-		)
+		log:warn("save aborted for %s (%d): the profile lock is held by another session", player.Name, userId)
 		entry.readOnly = true
 		return false, "lock_lost"
 	end
@@ -579,7 +570,11 @@ function DataService:start()
 		log:info("shutdown saves complete")
 	end)
 
-	log:info("ready (jobId=%s, store=%s)", self._jobId, self._useMock and "in-memory" or GameConfig.DataStoreName)
+	log:info(
+		"ready (jobId=%s, store=%s)",
+		self._jobId,
+		self._useMock and "in-memory" or GameConfig.DataStoreName
+	)
 end
 
 return DataService.new()

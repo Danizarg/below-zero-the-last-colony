@@ -164,7 +164,8 @@ local function renderOverview(shell, store, container)
 			textSize = Theme.Text.TinySize,
 			font = Theme.Font.Heading,
 			parent = visitCard,
-		}).LayoutOrder = 1
+		}).LayoutOrder =
+			1
 
 		UIKit.label({
 			name = "Note",
@@ -176,7 +177,8 @@ local function renderOverview(shell, store, container)
 			wrapped = true,
 			alignY = Enum.TextYAlignment.Top,
 			parent = visitCard,
-		}).LayoutOrder = 2
+		}).LayoutOrder =
+			2
 
 		for index, entry in ipairs(directory) do
 			local button = UIKit.button({
@@ -218,7 +220,7 @@ end
 -- Colonists
 -- ─────────────────────────────────────────────────────────────────────────────
 
-local function renderColonists(shell, store, container)
+local function renderColonists(_shell, store, container)
 	local colony = store.state.colony
 	if not colony then
 		return
@@ -250,7 +252,8 @@ local function renderColonists(shell, store, container)
 		textSize = Theme.Text.BodySize,
 		font = Theme.Font.Heading,
 		parent = recruitCard,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	local recruit = UIKit.primaryButton({
 		name = "RecruitButton",
@@ -278,7 +281,8 @@ local function renderColonists(shell, store, container)
 			icon = "·",
 			text = "No colonists yet. Recruit someone once you have food and a shelter.",
 			parent = container,
-		}).LayoutOrder = 2
+		}).LayoutOrder =
+			2
 		return
 	end
 
@@ -310,7 +314,8 @@ local function renderColonists(shell, store, container)
 			textSize = Theme.Text.BodySize,
 			font = Theme.Font.Heading,
 			parent = card,
-		}).LayoutOrder = 1
+		}).LayoutOrder =
+			1
 
 		UIKit.label({
 			name = "JobBlurb",
@@ -319,7 +324,8 @@ local function renderColonists(shell, store, container)
 			textColor = Theme.Color.TextMuted,
 			textSize = Theme.Text.TinySize,
 			parent = card,
-		}).LayoutOrder = 2
+		}).LayoutOrder =
+			2
 
 		local jobRow = UIKit.frame({
 			name = "Jobs",
@@ -344,10 +350,7 @@ local function renderColonists(shell, store, container)
 			if jobId == Enums.Job.Idle or total then
 				local button = UIKit.button({
 					name = "Job_" .. jobId,
-					text = ("%s %s"):format(
-						candidate.icon,
-						total and ("%d/%d"):format(used, total) or ""
-					),
+					text = ("%s %s"):format(candidate.icon, total and ("%d/%d"):format(used, total) or ""),
 					textSize = Theme.Text.TinySize,
 					color = isCurrent and Theme.Color.Accent or Theme.Color.Field,
 					textColor = isCurrent and Theme.Color.TextInverse or Theme.Color.Text,
@@ -361,8 +364,9 @@ local function renderColonists(shell, store, container)
 							store.notified:Fire({
 								kind = "warning",
 								title = "Cannot assign",
-								body = response.detail == "no_slots" and ("No free %s positions."):format(candidate.name)
-									or ("%s needs its building first."):format(candidate.name),
+								body = response.detail == "no_slots" and ("No free %s positions."):format(
+									candidate.name
+								) or ("%s needs its building first."):format(candidate.name),
 							})
 						end
 					end,
@@ -378,7 +382,7 @@ end
 -- Crafting
 -- ─────────────────────────────────────────────────────────────────────────────
 
-local function renderCrafting(shell, store, container)
+local function renderCrafting(_shell, store, container)
 	local recipes = store.state.recipes or {}
 	if #recipes == 0 then
 		UIKit.emptyState({
@@ -410,7 +414,8 @@ local function renderCrafting(shell, store, container)
 			textSize = Theme.Text.BodySize,
 			font = Theme.Font.Heading,
 			parent = card,
-		}).LayoutOrder = 1
+		}).LayoutOrder =
+			1
 
 		UIKit.label({
 			name = "Cost",
@@ -420,7 +425,8 @@ local function renderCrafting(shell, store, container)
 			textSize = Theme.Text.SmallSize,
 			richText = true,
 			parent = card,
-		}).LayoutOrder = 2
+		}).LayoutOrder =
+			2
 
 		local button = UIKit.primaryButton({
 			name = "Craft",

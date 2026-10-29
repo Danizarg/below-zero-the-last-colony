@@ -865,7 +865,10 @@ function CaveLayout.validate(layout)
 	if reached < #layout.order then
 		table.insert(
 			errors,
-			("%d of %d cells are unreachable from the entrance"):format(#layout.order - reached, #layout.order)
+			("%d of %d cells are unreachable from the entrance"):format(
+				#layout.order - reached,
+				#layout.order
+			)
 		)
 	end
 
@@ -885,9 +888,15 @@ function CaveLayout.validate(layout)
 	for _, objective in ipairs(layout.objectives) do
 		local cell = layout.cells[objective.cellKey]
 		if not cell then
-			table.insert(errors, ("objective %s points at missing cell %s"):format(objective.id, objective.cellKey))
+			table.insert(
+				errors,
+				("objective %s points at missing cell %s"):format(objective.id, objective.cellKey)
+			)
 		elseif cell.depth < 0 then
-			table.insert(errors, ("objective %s is in unreachable cell %s"):format(objective.id, objective.cellKey))
+			table.insert(
+				errors,
+				("objective %s is in unreachable cell %s"):format(objective.id, objective.cellKey)
+			)
 		end
 	end
 

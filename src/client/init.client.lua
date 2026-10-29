@@ -130,7 +130,7 @@ task.delay(1, function()
 	end
 end)
 
--- Keep references alive and make them reachable from the console for debugging.
+-- Keep references alive, and in debug builds make them reachable from the console.
 local client = {
 	store = Store,
 	shell = shell,
@@ -145,6 +145,14 @@ local client = {
 	interaction = interaction,
 	route = route,
 }
-_G.BelowZeroClient = client
+
+--[[ A console handle, debug builds only. Being able to type
+     `_G.BelowZeroClient.store.state` in the Studio command bar is worth a lot
+     while testing, but a published client should not hand its internals to
+     anyone who opens the developer console. ]]
+if GameConfig.Debug then
+	-- selene: allow(global_usage)
+	_G.BelowZeroClient = client
+end
 
 log:info("client ready (v%s) for %s", GameConfig.Version, Players.LocalPlayer.Name)

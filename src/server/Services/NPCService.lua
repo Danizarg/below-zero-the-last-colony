@@ -347,7 +347,8 @@ function NPCService:simulate(player, ticks, efficiencyScale)
 						self:_repairWorstBuilding(player, job.repairPerTick * efficiency)
 					end
 
-					colonist.skill = math.min(JobConfig.MaxSkill, (colonist.skill or 1) + (job.skillGain or 0))
+					colonist.skill =
+						math.min(JobConfig.MaxSkill, (colonist.skill or 1) + (job.skillGain or 0))
 				end
 			end
 		end
@@ -369,14 +370,13 @@ function NPCService:simulate(player, ticks, efficiencyScale)
 	-- Condition.
 	local decayPerTick = (NPC.ConditionDecayPerHour / 3600) * NPC.ProductionTickSeconds
 	local conditionDelta = conditionRepair - decayPerTick * ticks - starvationPenalty
-	profile.colony.condition = math.clamp(
-		(profile.colony.condition or 100) + conditionDelta,
-		NPC.ConditionFloor,
-		NPC.ConditionMax
-	)
+	profile.colony.condition =
+		math.clamp((profile.colony.condition or 100) + conditionDelta, NPC.ConditionFloor, NPC.ConditionMax)
 
 	-- Research.
-	profile.colony.research = (profile.colony.research or 0) + researchDelta + (effects.researchPerTick or 0) * ticks
+	profile.colony.research = (profile.colony.research or 0)
+		+ researchDelta
+		+ (effects.researchPerTick or 0) * ticks
 
 	--[[ Production was already quantised per tick, so these are whole units and
 	     the storage cap is applied by InventoryService. ]]
@@ -672,7 +672,11 @@ function NPCService:_updateRigs(deltaTime)
 			if flat.Magnitude < 1.5 then
 				entry.pauseUntil = now + self._rng:nextRange(1.5, 5)
 				entry.target = centre
-					+ Vector3.new(self._rng:nextRange(-spread, spread), 2, self._rng:nextRange(-spread, spread))
+					+ Vector3.new(
+						self._rng:nextRange(-spread, spread),
+						2,
+						self._rng:nextRange(-spread, spread)
+					)
 			else
 				local step = flat.Unit * math.min(entry.speed * deltaTime, flat.Magnitude)
 				local nextPosition = current + step
@@ -767,7 +771,11 @@ function NPCService:start()
 		self._rigs[player.UserId] = nil
 	end)
 
-	log:info("ready (production every %ds, up to %d visible rigs per plot)", NPC.ProductionTickSeconds, NPC.MaxVisibleRigs)
+	log:info(
+		"ready (production every %ds, up to %d visible rigs per plot)",
+		NPC.ProductionTickSeconds,
+		NPC.MaxVisibleRigs
+	)
 end
 
 return NPCService.new()

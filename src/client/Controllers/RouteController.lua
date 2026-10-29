@@ -12,7 +12,6 @@
 	than a solution.
 ]]
 
-
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("BelowZero")
 local PartFactory = require(Shared.Util.PartFactory)
 local Theme = require(Shared.Config.Theme)

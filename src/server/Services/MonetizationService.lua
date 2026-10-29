@@ -120,7 +120,7 @@ function MonetizationService:catalogue(player)
 		freeRescuesPerExpedition = GameConfig.Monetization.FreeRescuesPerExpedition,
 		--[[ Stated plainly in the UI so a player is never left wondering why a
 		     product does nothing. ]]
-		notice = (not GameConfig.Monetization.Enabled)
+		notice = not GameConfig.Monetization.Enabled
 				and "The shop is not live yet. Nothing here can be purchased, and nothing is required to play."
 			or nil,
 	}
@@ -144,8 +144,7 @@ function MonetizationService:prompt(player, productIdString)
 			ok = false,
 			reason = Enums.Reject.NotImplemented,
 			detail = reason,
-			message = reason == "monetization_disabled"
-					and "Purchases are switched off in this build."
+			message = reason == "monetization_disabled" and "Purchases are switched off in this build."
 				or "This product has not been created yet.",
 		}
 	end
@@ -216,7 +215,11 @@ function MonetizationService:_processReceipt(receiptInfo)
 	if self.context.DataService:isReadOnly(player) then
 		--[[ A read-only session cannot persist the grant, so acknowledging would
 		     lose the purchase. Retry later, when the lock is theirs. ]]
-		log:warn("deferring receipt %s: %s has a read-only session", tostring(receiptInfo.PurchaseId), player.Name)
+		log:warn(
+			"deferring receipt %s: %s has a read-only session",
+			tostring(receiptInfo.PurchaseId),
+			player.Name
+		)
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 
@@ -320,10 +323,7 @@ function MonetizationService:rescueBalance(player)
 	if not profile then
 		return 0
 	end
-	return math.max(
-		0,
-		(profile.monetization.rescuesPurchased or 0) - (profile.monetization.rescuesUsed or 0)
-	)
+	return math.max(0, (profile.monetization.rescuesPurchased or 0) - (profile.monetization.rescuesUsed or 0))
 end
 
 --[[ Spend one purchased rescue. Returns false if none is held — there is no

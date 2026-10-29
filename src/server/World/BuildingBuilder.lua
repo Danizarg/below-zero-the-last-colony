@@ -29,7 +29,7 @@ local B = Enums.Building
 -- Shell
 -- ─────────────────────────────────────────────────────────────────────────────
 
-local function buildShell(model, def, level, size, height, palette)
+local function buildShell(model, _def, level, size, height, palette)
 	local wallThickness = 1.4
 	local storeyHeight = height
 
@@ -142,7 +142,7 @@ end
 
 local details = {}
 
-details[B.TownHall] = function(model, def, level, size, palette, rng)
+details[B.TownHall] = function(model, def, level, size, palette, _rng)
 	-- A tower that grows with level: the colony's landmark.
 	local towerHeight = 16 + level * 7
 	PartFactory.block({
@@ -192,7 +192,7 @@ details[B.TownHall] = function(model, def, level, size, palette, rng)
 	})
 end
 
-details[B.Housing] = function(model, def, level, size, palette, rng)
+details[B.Housing] = function(model, _def, level, size, _palette, _rng)
 	local chimneyHeight = 8 + level * 2
 	PartFactory.block({
 		name = "Chimney",
@@ -214,7 +214,7 @@ details[B.Housing] = function(model, def, level, size, palette, rng)
 	})
 end
 
-details[B.Farm] = function(model, def, level, size, palette, rng)
+details[B.Farm] = function(model, def, level, size, _palette, rng)
 	--[[ The farm has no walls: it is planters and trellises, which makes it
 	     instantly distinguishable from the housing silhouette. ]]
 	for _, child in ipairs(model:GetChildren()) do
@@ -274,7 +274,7 @@ details[B.Farm] = function(model, def, level, size, palette, rng)
 	})
 end
 
-details[B.Workshop] = function(model, def, level, size, palette, rng)
+details[B.Workshop] = function(model, def, level, size, _palette, _rng)
 	-- Forge: the warm orange light that marks the workshop from across the plot.
 	PartFactory.block({
 		name = "Forge",
@@ -323,7 +323,7 @@ details[B.Workshop] = function(model, def, level, size, palette, rng)
 	end
 end
 
-details[B.Infirmary] = function(model, def, level, size, palette, rng)
+details[B.Infirmary] = function(model, def, level, size, _palette, _rng)
 	-- A lit cross, readable from any angle without a texture.
 	local crossColor = Color3.fromRGB(150, 236, 210)
 	PartFactory.glow({
@@ -420,7 +420,8 @@ function BuildingBuilder.build(placement, origin, parent)
 	local level = math.clamp(placement.level or 1, 1, #def.levels)
 	local rotation = placement.rot or 0
 	local size = BuildingBuilder.footprintSize(placement.id, rotation)
-	local palette = def.palette or { primary = Color3.fromRGB(96, 86, 72), accent = Color3.fromRGB(176, 140, 90) }
+	local palette = def.palette
+		or { primary = Color3.fromRGB(96, 86, 72), accent = Color3.fromRGB(176, 140, 90) }
 
 	local model = PartFactory.model(def.name, nil)
 	model:SetAttribute("BuildingUid", placement.uid)
@@ -433,7 +434,9 @@ function BuildingBuilder.build(placement, origin, parent)
 	buildShell(model, def, level, size, height, palette)
 
 	local rng = Rng.new(
-		(tonumber(string.match(tostring(placement.uid), "%d+")) or 1) * 7919 + placement.gx * 31 + placement.gz
+		(tonumber(string.match(tostring(placement.uid), "%d+")) or 1) * 7919
+			+ placement.gx * 31
+			+ placement.gz
 	)
 	local detail = details[placement.id]
 	if detail then

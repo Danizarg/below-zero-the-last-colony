@@ -40,11 +40,7 @@ end
 --[[ Grid cell -> world position, on the plot's ground surface. ]]
 function PlotGrid.gridToWorld(index, gx, gz)
 	local centre = PlotGrid.plotCentre(index)
-	return Vector3.new(
-		centre.X + gx * COLONY.GridStep,
-		COLONY.FloorY + 2,
-		centre.Z + gz * COLONY.GridStep
-	)
+	return Vector3.new(centre.X + gx * COLONY.GridStep, COLONY.FloorY + 2, centre.Z + gz * COLONY.GridStep)
 end
 
 --[[

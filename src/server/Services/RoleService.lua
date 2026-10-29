@@ -178,7 +178,7 @@ end
 
 --[[ Role identity on the body: a tinted shoulder lamp and a coloured accent.
      Procedural, so it works with any avatar and needs no assets. ]]
-function RoleService:_applyAppearance(player, character, resolved)
+function RoleService:_applyAppearance(_player, character, resolved)
 	local existing = character:FindFirstChild("RoleKit")
 	if existing then
 		existing:Destroy()
@@ -250,7 +250,10 @@ function RoleService:damageReductionFor(player)
 				if sourceRoot and (sourceRoot.Position - root.Position).Magnitude <= entry.data.radius then
 					--[[ Only allies in the same expedition benefit, so an aura
 					     cannot leak between concurrent sessions. ]]
-					if self.context.ExpeditionService:sessionIdOf(source) == self.context.ExpeditionService:sessionIdOf(player) then
+					if
+						self.context.ExpeditionService:sessionIdOf(source)
+						== self.context.ExpeditionService:sessionIdOf(player)
+					then
 						best = math.max(best, entry.data.damageReduction)
 					end
 				end
@@ -396,7 +399,7 @@ end
 --[[ Guardian — Last Stand. Damage reduction for the Guardian and nearby allies.
      Queried by damageReductionFor rather than applied as a stat, so it layers
      correctly with role multipliers. ]]
-abilityHandlers.last_stand = function(self, player, resolved, session)
+abilityHandlers.last_stand = function(self, player, resolved, _session)
 	self._activeEffects[player.UserId] = self._activeEffects[player.UserId] or {}
 	self._activeEffects[player.UserId]["last_stand"] = {
 		endsAt = os.clock() + resolved.ability.duration,
@@ -637,7 +640,8 @@ function RoleService:start()
 							local otherRoot = other.Character and other.Character.PrimaryPart
 							if
 								otherRoot
-								and (otherRoot.Position - root.Position).Magnitude <= stabilization.data.radius
+								and (otherRoot.Position - root.Position).Magnitude
+									<= stabilization.data.radius
 							then
 								self.context.SurvivalService:heal(
 									other,
@@ -663,11 +667,7 @@ function RoleService:start()
 		self._activeEffects[player.UserId] = nil
 	end)
 
-	log:info(
-		"ready (%d roles, %d implemented)",
-		#RoleConfig.Order,
-		#RoleConfig.selectable(true)
-	)
+	log:info("ready (%d roles, %d implemented)", #RoleConfig.Order, #RoleConfig.selectable(true))
 end
 
 return RoleService.new()

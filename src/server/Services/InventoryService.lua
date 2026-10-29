@@ -492,7 +492,8 @@ function InventoryService:loadSupplies(player, requested)
 	table.sort(ids)
 
 	for _, id in ipairs(ids) do
-		local want = math.clamp(math.floor(tonumber(requested[id]) or 0), 0, GameConfig.Inventory.MaxSuppliesPerType)
+		local want =
+			math.clamp(math.floor(tonumber(requested[id]) or 0), 0, GameConfig.Inventory.MaxSuppliesPerType)
 		if want > 0 then
 			local held = Inventory.consumableCount(storage, id)
 			local take = math.min(want, held)

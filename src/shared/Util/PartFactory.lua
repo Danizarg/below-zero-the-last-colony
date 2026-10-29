@@ -373,7 +373,9 @@ function PartFactory.scatter(props)
 			PartFactory.decor({
 				name = props.name or "Debris",
 				size = size,
-				cframe = CFrame.new(origin + Vector3.new(math.cos(angle) * distance, size.Y / 2, math.sin(angle) * distance))
+				cframe = CFrame.new(
+					origin + Vector3.new(math.cos(angle) * distance, size.Y / 2, math.sin(angle) * distance)
+				)
 					* CFrame.Angles(
 						rng and rng:nextRange(-0.3, 0.3) or 0,
 						rng and rng:nextRange(0, math.pi * 2) or 0,

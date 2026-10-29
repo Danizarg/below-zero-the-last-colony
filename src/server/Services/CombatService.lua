@@ -119,7 +119,13 @@ function CombatService:attack(player, monsterId)
 		return { ok = true, hit = false, reason = "out_of_reach", distance = math.floor(distance) }
 	end
 
-	if not hasLineOfSight(root.Position + Vector3.new(0, 2, 0), monster:position(), { character, monster.model }) then
+	if
+		not hasLineOfSight(
+			root.Position + Vector3.new(0, 2, 0),
+			monster:position(),
+			{ character, monster.model }
+		)
+	then
 		return { ok = true, hit = false, reason = "blocked" }
 	end
 
@@ -179,12 +185,8 @@ function CombatService:monsterAttack(monster, player)
 		return 0
 	end
 
-	local dealt = self.context.SurvivalService:applyDamage(
-		player,
-		monster.damage,
-		monster.def.name,
-		monster:position()
-	)
+	local dealt =
+		self.context.SurvivalService:applyDamage(player, monster.damage, monster.def.name, monster:position())
 
 	if dealt > 0 then
 		session.stats.damageTaken = (session.stats.damageTaken or 0) + dealt

@@ -109,7 +109,8 @@ function BuildController:_buildGhost(buildingId, rotation)
 	model.PrimaryPart = pad
 	model.Parent = workspace
 
-	self._ghost = { model = model, pad = pad, volume = volume, facing = facing, w = w, d = d, height = def.height }
+	self._ghost =
+		{ model = model, pad = pad, volume = volume, facing = facing, w = w, d = d, height = def.height }
 end
 
 function BuildController:_destroyGhost()
@@ -259,7 +260,10 @@ function BuildController:_showBanner(buildingId)
 		transparency = 1,
 		parent = banner,
 	})
-	UIKit.list(controls, { horizontal = true, padding = Theme.Space.XS, horizontalAlign = Enum.HorizontalAlignment.Center })
+	UIKit.list(
+		controls,
+		{ horizontal = true, padding = Theme.Space.XS, horizontalAlign = Enum.HorizontalAlignment.Center }
+	)
 
 	UIKit.button({
 		name = "Rotate",
@@ -270,7 +274,8 @@ function BuildController:_showBanner(buildingId)
 		onClick = function()
 			self:rotate()
 		end,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	UIKit.primaryButton({
 		name = "Confirm",
@@ -281,7 +286,8 @@ function BuildController:_showBanner(buildingId)
 		onClick = function()
 			self:confirm()
 		end,
-	}).LayoutOrder = 2
+	}).LayoutOrder =
+		2
 
 	UIKit.button({
 		name = "Cancel",
@@ -292,7 +298,8 @@ function BuildController:_showBanner(buildingId)
 		onClick = function()
 			self:cancel()
 		end,
-	}).LayoutOrder = 3
+	}).LayoutOrder =
+		3
 
 	self._banner = banner
 	self._bannerStatus = status

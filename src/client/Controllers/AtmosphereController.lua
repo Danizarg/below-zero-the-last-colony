@@ -242,7 +242,8 @@ function AtmosphereController:_applyShake(deltaTime)
 
 	--[[ Offsetting CFrame directly fights the camera scripts, so this nudges
 	     the camera each frame and lets the decay return it to centre. ]]
-	camera.CFrame = camera.CFrame * CFrame.new(self._shake.X, self._shake.Y, 0)
+	camera.CFrame = camera.CFrame
+		* CFrame.new(self._shake.X, self._shake.Y, 0)
 		* CFrame.Angles(0, 0, math.rad(self._shake.Z))
 
 	self._shake = self._shake:Lerp(Vector3.zero, math.clamp(deltaTime * self._shakeDecay, 0, 1))
@@ -292,10 +293,7 @@ function AtmosphereController:_updateFires()
 					NumberSequenceKeypoint.new(0, 0.2),
 					NumberSequenceKeypoint.new(1, 1),
 				})
-				emitter.Color = ColorSequence.new(
-					Color3.fromRGB(255, 196, 96),
-					Color3.fromRGB(226, 96, 40)
-				)
+				emitter.Color = ColorSequence.new(Color3.fromRGB(255, 196, 96), Color3.fromRGB(226, 96, 40))
 				emitter.LightEmission = 0.8
 				emitter.Acceleration = Vector3.new(0, 14, 0)
 				emitter.Parent = descendant

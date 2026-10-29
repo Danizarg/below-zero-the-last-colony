@@ -95,7 +95,8 @@ function InteractionController:_showGateDialog(info)
 		font = Theme.Font.Display,
 		align = Enum.TextXAlignment.Center,
 		parent = card,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	UIKit.label({
 		name = "Lore",
@@ -108,7 +109,8 @@ function InteractionController:_showGateDialog(info)
 		alignY = Enum.TextYAlignment.Top,
 		automaticSize = Enum.AutomaticSize.Y,
 		parent = card,
-	}).LayoutOrder = 2
+	}).LayoutOrder =
+		2
 
 	if not info.complete then
 		UIKit.label({
@@ -128,7 +130,8 @@ function InteractionController:_showGateDialog(info)
 			alignY = Enum.TextYAlignment.Top,
 			automaticSize = Enum.AutomaticSize.Y,
 			parent = card,
-		}).LayoutOrder = 3
+		}).LayoutOrder =
+			3
 
 		UIKit.label({
 			name = "Unlocks",
@@ -143,7 +146,8 @@ function InteractionController:_showGateDialog(info)
 			alignY = Enum.TextYAlignment.Top,
 			automaticSize = Enum.AutomaticSize.Y,
 			parent = card,
-		}).LayoutOrder = 4
+		}).LayoutOrder =
+			4
 
 		local unlock = UIKit.primaryButton({
 			name = "Unlock",
@@ -160,7 +164,10 @@ function InteractionController:_showGateDialog(info)
 				if not response.ok then
 					local body = "The gate does not move."
 					if response.detail == "keys" then
-						body = ("You need %d keys and have %d."):format(response.need or 0, response.have or 0)
+						body = ("You need %d keys and have %d."):format(
+							response.need or 0,
+							response.have or 0
+						)
 					elseif response.detail == "future_chapter" then
 						body = ("%s is designed but not built yet. Later chapter."):format(
 							response.stageName or "That seal"
@@ -210,7 +217,8 @@ local function reasonText(response)
 	elseif response.reason == Enums.Reject.RateLimited then
 		return "Slow down."
 	elseif response.detail == "needs_tool" then
-		return response.tool and ("You need a %s for this."):format(response.tool) or "You need a better tool."
+		return response.tool and ("You need a %s for this."):format(response.tool)
+			or "You need a better tool."
 	elseif response.detail == "no_stamina" then
 		return "Out of stamina."
 	elseif response.detail == "depleted" then
@@ -224,18 +232,19 @@ end
 function InteractionController:_handlePrompt(prompt)
 	local name = prompt.Name
 
-	-- Colony prompts: open the relevant panel.
-	if name == "ExpeditionPrompt" then
-		self.shell:open("expedition")
-		return
-	elseif name == "ColonyPrompt" then
-		self.shell:open("colony")
-		return
-	elseif name == "CraftPrompt" then
-		self.shell:open("colony")
-		return
-	elseif name == "BuildingPrompt" then
-		self.shell:open("build")
+	--[[ Colony prompts just open a panel. The noticeboard and the crafting
+	     stations both land on the colony panel: crafting is a tab inside it, so
+	     a separate destination would only add a click. ]]
+	local PANEL_FOR_PROMPT = {
+		ExpeditionPrompt = "expedition",
+		ColonyPrompt = "colony",
+		CraftPrompt = "colony",
+		BuildingPrompt = "build",
+	}
+
+	local panel = PANEL_FOR_PROMPT[name]
+	if panel then
+		self.shell:open(panel)
 		return
 	end
 
@@ -249,7 +258,12 @@ function InteractionController:_handlePrompt(prompt)
 		if not response.ok then
 			local text = reasonText(response)
 			if text then
-				self.store.notified:Fire({ kind = "warning", title = "Cannot harvest", body = text, lifetime = 3 })
+				self.store.notified:Fire({
+					kind = "warning",
+					title = "Cannot harvest",
+					body = text,
+					lifetime = 3,
+				})
 			end
 		elseif response.gained and response.gained > 0 then
 			--[[ A short-lived toast rather than a persistent one: harvesting is
@@ -283,15 +297,19 @@ function InteractionController:_handlePrompt(prompt)
 		if not response.ok then
 			local text = reasonText(response)
 			if text then
-				self.store.notified:Fire({ kind = "warning", title = "Nothing happens", body = text, lifetime = 3 })
+				self.store.notified:Fire({
+					kind = "warning",
+					title = "Nothing happens",
+					body = text,
+					lifetime = 3,
+				})
 			end
 		elseif response.kind == "pillar" and response.progress then
-			if response.reset then
-				--[[ Handled by the server's own notification, so nothing extra
-				     here; duplicating it would double the toast. ]]
-			elseif response.solved then
-				-- The server sends a party-wide alert for a solve.
-			else
+			--[[ A reset and a solve both already produce their own server-side
+			     message (a notification and a party-wide alert respectively), so
+			     echoing them here would double the toast. Only the in-progress
+			     step needs local feedback. ]]
+			if not response.reset and not response.solved then
 				self.store.notified:Fire({
 					kind = "info",
 					title = ("Rune %d of %d"):format(response.progress, response.total),

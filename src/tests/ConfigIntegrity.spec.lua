@@ -80,7 +80,10 @@ return function(suite)
 
 	suite:test("every node yields a real resource and spawns in real rooms", function(expect)
 		for id, node in pairs(ResourceConfig.Nodes) do
-			expect.truthy(resourceIds[node.resource], ("node %s yields unknown resource %s"):format(id, node.resource))
+			expect.truthy(
+				resourceIds[node.resource],
+				("node %s yields unknown resource %s"):format(id, node.resource)
+			)
 			expect.greaterThan(node.hits, 0, ("node %s can never be depleted"):format(id))
 			expect.greaterThan(node.yieldPerHit, 0, ("node %s yields nothing"):format(id))
 			expect.atLeast(#node.rooms, 1, ("node %s can never spawn anywhere"):format(id))
@@ -123,7 +126,10 @@ return function(suite)
 	suite:test("tool costs reference real resources", function(expect)
 		for id, tool in pairs(ResourceConfig.Tools) do
 			for resourceId in pairs(tool.cost or {}) do
-				expect.truthy(resourceIds[resourceId], ("tool %s costs unknown resource %s"):format(id, resourceId))
+				expect.truthy(
+					resourceIds[resourceId],
+					("tool %s costs unknown resource %s"):format(id, resourceId)
+				)
 			end
 			expect.greaterThan(tool.swingCooldown, 0, ("tool %s has no swing cooldown"):format(id))
 		end
@@ -541,7 +547,10 @@ return function(suite)
 		local seen = {}
 		for id, role in pairs(RoleConfig.Roles) do
 			local abilityId = role.ability.id
-			expect.falsy(seen[abilityId], ("ability %s is used by both %s and %s"):format(abilityId, tostring(seen[abilityId]), id))
+			expect.falsy(
+				seen[abilityId],
+				("ability %s is used by both %s and %s"):format(abilityId, tostring(seen[abilityId]), id)
+			)
 			seen[abilityId] = id
 		end
 	end)
@@ -591,7 +600,10 @@ return function(suite)
 				expect.truthy(roomKinds[kind], ("%s spawns in unknown room %s"):format(id, kind))
 			end
 			for _, drop in ipairs(def.drops or {}) do
-				expect.truthy(resourceIds[drop.resource], ("%s drops unknown resource %s"):format(id, drop.resource))
+				expect.truthy(
+					resourceIds[drop.resource],
+					("%s drops unknown resource %s"):format(id, drop.resource)
+				)
 				expect.inRange(drop.chance or 1, 0, 1, ("%s has an impossible drop chance"):format(id))
 			end
 		end
@@ -628,7 +640,11 @@ return function(suite)
 				expect.atLeast(
 					room.lightLevel,
 					threshold,
-					("%s is lit at %.2f, below the Stalker's %.2f aversion"):format(kind, room.lightLevel, threshold)
+					("%s is lit at %.2f, below the Stalker's %.2f aversion"):format(
+						kind,
+						room.lightLevel,
+						threshold
+					)
 				)
 			end
 		end
@@ -724,7 +740,12 @@ return function(suite)
 				expect.isType(value, "string", ("Routes.%s.%s is not a string"):format(tableName, key))
 				expect.falsy(
 					seen[value],
-					("Routes.%s has %q twice (%s and %s)"):format(tableName, value, tostring(seen[value]), key)
+					("Routes.%s has %q twice (%s and %s)"):format(
+						tableName,
+						value,
+						tostring(seen[value]),
+						key
+					)
 				)
 				seen[value] = key
 			end
@@ -798,7 +819,10 @@ return function(suite)
 		expect.equal(#effectful, 1, "the shop should have exactly one non-cosmetic product")
 		expect.equal(effectful[1], "emergency_rescue")
 		expect.truthy(ShopConfig.Products.emergency_rescue.maxPerExpedition, "the rescue must be capped")
-		expect.truthy(ShopConfig.Products.emergency_rescue.bannedInRanked, "the rescue must be ranked-excluded")
+		expect.truthy(
+			ShopConfig.Products.emergency_rescue.bannedInRanked,
+			"the rescue must be ranked-excluded"
+		)
 	end)
 
 	suite:test("no product is live, so nothing can be purchased yet", function(expect)
@@ -811,7 +835,10 @@ return function(suite)
 				("product %s has a real id; verify the purchase flow, then update this test"):format(id)
 			)
 		end
-		expect.falsy(GameConfig.Monetization.Enabled, "monetization should stay off until the flow is verified")
+		expect.falsy(
+			GameConfig.Monetization.Enabled,
+			"monetization should stay off until the flow is verified"
+		)
 	end)
 
 	suite:test("every product is listed in Order and has a real category", function(expect)
@@ -829,7 +856,10 @@ return function(suite)
 		end
 		for id, product in pairs(ShopConfig.Products) do
 			expect.truthy(seen[id], ("product %s is missing from Order"):format(id))
-			expect.truthy(categories[product.category], ("product %s has unknown category %s"):format(id, tostring(product.category)))
+			expect.truthy(
+				categories[product.category],
+				("product %s has unknown category %s"):format(id, tostring(product.category))
+			)
 		end
 	end)
 
@@ -862,9 +892,15 @@ return function(suite)
 
 	suite:test("phase beds and random ambience reference real cues", function(expect)
 		for phase, bed in pairs(AudioConfig.PhaseBeds) do
-			expect.truthy(AudioConfig.Cues[bed.ambience], ("phase %s uses unknown cue %s"):format(phase, bed.ambience))
+			expect.truthy(
+				AudioConfig.Cues[bed.ambience],
+				("phase %s uses unknown cue %s"):format(phase, bed.ambience)
+			)
 			if bed.sting then
-				expect.truthy(AudioConfig.Cues[bed.sting], ("phase %s stings unknown cue %s"):format(phase, bed.sting))
+				expect.truthy(
+					AudioConfig.Cues[bed.sting],
+					("phase %s stings unknown cue %s"):format(phase, bed.sting)
+				)
 			end
 		end
 		for phase, entries in pairs(AudioConfig.RandomAmbience) do
@@ -873,7 +909,11 @@ return function(suite)
 					AudioConfig.Cues[entry.cue],
 					("random ambience for %s uses unknown cue %s"):format(phase, entry.cue)
 				)
-				expect.lessThan(entry.every[1], entry.every[2], ("%s has an inverted interval"):format(entry.cue))
+				expect.lessThan(
+					entry.every[1],
+					entry.every[2],
+					("%s has an inverted interval"):format(entry.cue)
+				)
 			end
 		end
 	end)

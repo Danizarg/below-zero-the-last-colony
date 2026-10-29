@@ -54,7 +54,7 @@ end
 
 local propBuilders = {}
 
-propBuilders.arch = function(folder, origin, spec, biome, rng)
+propBuilders.arch = function(folder, origin, spec, biome, _rng)
 	PartFactory.arch({
 		cframe = CFrame.new(origin + Vector3.new(0, spec.size.Y / 2, 0)),
 		width = spec.size.X,
@@ -66,18 +66,19 @@ propBuilders.arch = function(folder, origin, spec, biome, rng)
 	})
 end
 
-propBuilders.crate = function(folder, origin, spec, biome, rng)
+propBuilders.crate = function(folder, origin, spec, _biome, rng)
 	PartFactory.block({
 		name = "Crate",
 		size = spec.size,
-		cframe = CFrame.new(origin + Vector3.new(0, spec.size.Y / 2, 0)) * CFrame.Angles(0, rng:nextRange(0, 6.28), 0),
+		cframe = CFrame.new(origin + Vector3.new(0, spec.size.Y / 2, 0))
+			* CFrame.Angles(0, rng:nextRange(0, 6.28), 0),
 		color = spec.color or Color3.fromRGB(112, 88, 60),
 		material = Enum.Material.Wood,
 		parent = folder,
 	})
 end
 
-propBuilders.lantern = function(folder, origin, spec, biome, rng)
+propBuilders.lantern = function(folder, origin, spec, _biome, _rng)
 	PartFactory.lantern({
 		origin = origin,
 		height = spec.size.Y,
@@ -101,7 +102,7 @@ propBuilders.scatter = function(folder, origin, spec, biome, rng)
 	})
 end
 
-propBuilders.beam = function(folder, origin, spec, biome, rng)
+propBuilders.beam = function(folder, origin, _spec, _biome, _rng)
 	--[[ Mine supports: two posts and a lintel. Cheap, and they do a lot of work
 	     selling "someone dug this". ]]
 	local height = CAVE.RoomHeight * 0.6
@@ -125,7 +126,7 @@ propBuilders.beam = function(folder, origin, spec, biome, rng)
 	})
 end
 
-propBuilders.cart = function(folder, origin, spec, biome, rng)
+propBuilders.cart = function(folder, origin, spec, _biome, rng)
 	--[[ A mine cart: body, two wheels and a short run of rail. It is the single
 	     most effective prop for selling "people worked here", which is what
 	     makes a mining chamber feel different from a natural cavern. ]]
@@ -185,7 +186,7 @@ propBuilders.mushrooms = function(folder, origin, spec, biome, rng)
 	})
 end
 
-propBuilders.pool = function(folder, origin, spec, biome, rng)
+propBuilders.pool = function(folder, origin, spec, biome, _rng)
 	PartFactory.glow({
 		name = "GlowPool",
 		size = spec.size,
@@ -199,7 +200,7 @@ propBuilders.pool = function(folder, origin, spec, biome, rng)
 	})
 end
 
-propBuilders.sign = function(folder, origin, spec, biome, rng)
+propBuilders.sign = function(folder, origin, spec, _biome, _rng)
 	local post = PartFactory.decor({
 		name = "Signpost",
 		size = Vector3.new(0.6, spec.size.Y, 0.6),
@@ -219,7 +220,7 @@ propBuilders.sign = function(folder, origin, spec, biome, rng)
 	return post
 end
 
-propBuilders.sac = function(folder, origin, spec, biome, rng)
+propBuilders.sac = function(folder, origin, spec, _biome, _rng)
 	PartFactory.decor({
 		name = "EggSac",
 		size = spec.size,
@@ -232,7 +233,7 @@ propBuilders.sac = function(folder, origin, spec, biome, rng)
 	})
 end
 
-propBuilders.web = function(folder, origin, spec, biome, rng)
+propBuilders.web = function(folder, origin, spec, _biome, rng)
 	for index = 1, spec.count or 3 do
 		local angle = rng:nextRange(0, math.pi * 2)
 		PartFactory.decor({
@@ -249,7 +250,7 @@ propBuilders.web = function(folder, origin, spec, biome, rng)
 	end
 end
 
-propBuilders.pillar = function(folder, origin, spec, biome, rng)
+propBuilders.pillar = function(folder, origin, spec, _biome, _rng)
 	PartFactory.decor({
 		name = "RunePillar",
 		size = spec.size,
@@ -270,7 +271,7 @@ propBuilders.pillar = function(folder, origin, spec, biome, rng)
 	})
 end
 
-propBuilders.tiles = function(folder, origin, spec, biome, rng)
+propBuilders.tiles = function(folder, origin, spec, _biome, _rng)
 	PartFactory.decor({
 		name = "AncientFloor",
 		size = spec.size,
@@ -281,7 +282,7 @@ propBuilders.tiles = function(folder, origin, spec, biome, rng)
 	})
 end
 
-propBuilders.gate = function(folder, origin, spec, biome, rng)
+propBuilders.gate = function(folder, origin, spec, _biome, _rng)
 	--[[ The First Gate. ObjectiveService attaches the prompt and drives its
 	     visual state, so this is purely the frame and the sealed slab. ]]
 	local gate = PartFactory.folder("FirstGate", folder)
@@ -307,7 +308,7 @@ propBuilders.gate = function(folder, origin, spec, biome, rng)
 	return gate
 end
 
-propBuilders.plinth = function(folder, origin, spec, biome, rng)
+propBuilders.plinth = function(folder, origin, spec, _biome, _rng)
 	PartFactory.block({
 		name = "Plinth",
 		size = spec.size,
@@ -318,7 +319,7 @@ propBuilders.plinth = function(folder, origin, spec, biome, rng)
 	})
 end
 
-propBuilders.ladder = function(folder, origin, spec, biome, rng)
+propBuilders.ladder = function(folder, origin, spec, _biome, _rng)
 	--[[ The secondary extraction point: a shaft of rope ladder reaching up into
 	     the dark. ObjectiveService / ExpeditionService attach the prompt. ]]
 	for rung = 0, math.floor(spec.size.Y / 3) do
@@ -426,7 +427,8 @@ function RoomLibrary.buildShell(roomModel, cell, origin, biome, rng)
 				     looks the same. ]]
 				local angle = (index / math.max(1, count)) * math.pi * 2 + rng:nextRange(-0.4, 0.4)
 				local distance = count > 1 and rng:nextRange(half * 0.25, half * 0.6) or 0
-				local propOrigin = origin + Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
+				local propOrigin = origin
+					+ Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
 				local ok, err = pcall(builder, props, propOrigin, spec, biome, rng)
 				if not ok then
 					warn(("[BZ/RoomLibrary] prop %q failed: %s"):format(propId, tostring(err)))
@@ -456,7 +458,7 @@ end
 
 --[[ Name label shown in the HUD when a player enters a room, and above safe
      rooms so an exit is visible from the doorway. ]]
-function RoomLibrary.decorateSpecial(roomModel, cell, origin, layout)
+function RoomLibrary.decorateSpecial(roomModel, cell, origin, _layout)
 	local def = RoomConfig.get(cell.kind)
 	if not def then
 		return

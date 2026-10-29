@@ -62,7 +62,11 @@ function expect.near(actual, expected, tolerance, message)
 	if math.abs(actual - expected) > tolerance then
 		fail(
 			message
-				or ("expected %s within %s of %s"):format(tostring(actual), tostring(tolerance), tostring(expected))
+				or ("expected %s within %s of %s"):format(
+					tostring(actual),
+					tostring(tolerance),
+					tostring(expected)
+				)
 		)
 	end
 end
@@ -209,7 +213,13 @@ function TestRunner.runAll(options)
 
 	if verbose then
 		for _, failure in ipairs(summary.failures) do
-			warn(("[BZ/Test] FAILED %s › %s\n           %s"):format(failure.suite, failure.test, failure.error))
+			warn(
+				("[BZ/Test] FAILED %s › %s\n           %s"):format(
+					failure.suite,
+					failure.test,
+					failure.error
+				)
+			)
 		end
 
 		print(

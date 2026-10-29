@@ -107,7 +107,10 @@ function ColonyHUD.new(shell, store)
 		parent = self.root,
 	})
 	UIKit.padding(strip, Theme.Space.XS)
-	UIKit.list(strip, { horizontal = true, padding = Theme.Space.XS, verticalAlign = Enum.VerticalAlignment.Center })
+	UIKit.list(
+		strip,
+		{ horizontal = true, padding = Theme.Space.XS, verticalAlign = Enum.VerticalAlignment.Center }
+	)
 	self.strip = strip
 
 	for index, resourceId in ipairs(PINNED) do
@@ -161,7 +164,8 @@ function ColonyHUD.new(shell, store)
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = objective,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	self.objectiveText = UIKit.label({
 		name = "Text",

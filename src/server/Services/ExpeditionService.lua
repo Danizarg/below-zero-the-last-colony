@@ -416,9 +416,13 @@ function ExpeditionService:_tickShifts(session)
 
 	for _, lead in ipairs(SHIFT_WARNINGS) do
 		local key = ("%d:%d"):format(session.shiftsApplied, lead)
-		if remaining <= lead and remaining > lead - CLOCK_TICK * 2 and not session.shiftWarningsGiven[key] then
+		if
+			remaining <= lead
+			and remaining > lead - CLOCK_TICK * 2
+			and not session.shiftWarningsGiven[key]
+		then
 			session.shiftWarningsGiven[key] = true
-			self.context.CaveService:warnShift(session.id, self:playersIn(session), lead)
+			self.context.CaveService:warnShift(self:playersIn(session), lead)
 		end
 	end
 
@@ -436,7 +440,12 @@ function ExpeditionService:_tickShifts(session)
 	if not result.ok then
 		--[[ A failed shift leaves the cave intact. Retrying on the normal
 		     interval is better than a loop that keeps failing. ]]
-		log:warn("session %d shift %d failed (%s)", session.id, session.shiftsApplied, tostring(result.reason))
+		log:warn(
+			"session %d shift %d failed (%s)",
+			session.id,
+			session.shiftsApplied,
+			tostring(result.reason)
+		)
 	end
 
 	session.nextShiftAt = os.clock() + session.difficulty.shiftIntervalSeconds
@@ -633,7 +642,7 @@ end
 -- Death and leaving
 -- ─────────────────────────────────────────────────────────────────────────────
 
-function ExpeditionService:onMemberDied(session, player)
+function ExpeditionService:onMemberDied(session, _player)
 	self:pushSession(session)
 end
 

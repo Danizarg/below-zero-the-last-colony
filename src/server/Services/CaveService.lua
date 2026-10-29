@@ -411,8 +411,10 @@ end
 -- ─────────────────────────────────────────────────────────────────────────────
 
 --[[ Broadcast a warning to a session's players. Called by ExpeditionService on
-     the dusk/night schedule. ]]
-function CaveService:warnShift(sessionId, players, secondsRemaining)
+     the dusk/night schedule, which passes the recipient list directly — this
+     does not need the session id, and taking one would imply it looked the
+     players up itself. ]]
+function CaveService:warnShift(players, secondsRemaining)
 	local messages = {
 		[30] = { title = "30 SECONDS UNTIL THE SHIFT", body = "Find a route or find a room." },
 		[10] = { title = "10 SECONDS", body = "Hold still. The walls are moving." },

@@ -122,22 +122,26 @@ function ShopPanel.render(store, container)
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = policy,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	UIKit.label({
 		name = "Rules",
 		size = UDim2.new(1, 0, 0, 0),
-		text = ("· Everything here is cosmetic, except one optional rescue.\n"
+		text = (
+			"· Everything here is cosmetic, except one optional rescue.\n"
 			.. "· You always get %d free rescue per expedition, before any purchase.\n"
 			.. "· No crates, no rolls, no randomised rewards.\n"
-			.. "· Nothing here makes you stronger underground."):format(shop.freeRescuesPerExpedition or 1),
+			.. "· Nothing here makes you stronger underground."
+		):format(shop.freeRescuesPerExpedition or 1),
 		textColor = Theme.Color.TextMuted,
 		textSize = Theme.Text.TinySize,
 		wrapped = true,
 		alignY = Enum.TextYAlignment.Top,
 		automaticSize = Enum.AutomaticSize.Y,
 		parent = policy,
-	}).LayoutOrder = 2
+	}).LayoutOrder =
+		2
 
 	-- Products, grouped by category.
 	local byCategory = {}
@@ -150,7 +154,8 @@ function ShopPanel.render(store, container)
 	for _, category in ipairs(shop.categories or ShopConfig.CategoryOrder) do
 		local products = byCategory[category]
 		if products and #products > 0 then
-			local meta = (shop.categoryMeta or ShopConfig.CategoryMeta)[category] or { name = category, icon = "·" }
+			local meta = (shop.categoryMeta or ShopConfig.CategoryMeta)[category]
+				or { name = category, icon = "·" }
 			order += 1
 
 			UIKit.label({
@@ -161,7 +166,8 @@ function ShopPanel.render(store, container)
 				textSize = Theme.Text.SmallSize,
 				font = Theme.Font.Heading,
 				parent = container,
-			}).LayoutOrder = order
+			}).LayoutOrder =
+				order
 
 			for _, product in ipairs(products) do
 				order += 1
@@ -185,7 +191,8 @@ function ShopPanel.render(store, container)
 					textSize = Theme.Text.BodySize,
 					font = Theme.Font.Heading,
 					parent = card,
-				}).LayoutOrder = 1
+				}).LayoutOrder =
+					1
 
 				UIKit.label({
 					name = "Description",
@@ -197,16 +204,19 @@ function ShopPanel.render(store, container)
 					alignY = Enum.TextYAlignment.Top,
 					automaticSize = Enum.AutomaticSize.Y,
 					parent = card,
-				}).LayoutOrder = 2
+				}).LayoutOrder =
+					2
 
 				UIKit.label({
 					name = "Tag",
 					size = UDim2.new(1, 0, 0, 16),
-					text = product.isCosmetic and "Cosmetic only" or "Affects gameplay — capped per expedition",
+					text = product.isCosmetic and "Cosmetic only"
+						or "Affects gameplay — capped per expedition",
 					textColor = product.isCosmetic and Theme.Color.Info or Theme.Color.Warning,
 					textSize = Theme.Text.TinySize,
 					parent = card,
-				}).LayoutOrder = 3
+				}).LayoutOrder =
+					3
 
 				local button = UIKit.primaryButton({
 					name = "Buy",
@@ -215,7 +225,8 @@ function ShopPanel.render(store, container)
 					textSize = Theme.Text.SmallSize,
 					parent = card,
 					onClick = function()
-						local response = Net.request(Routes.Request.PromptPurchase, { productId = product.id })
+						local response =
+							Net.request(Routes.Request.PromptPurchase, { productId = product.id })
 						if not response.ok then
 							store.notified:Fire({
 								kind = "info",
@@ -250,7 +261,8 @@ function ShopPanel.render(store, container)
 			textColor = Theme.Color.Info,
 			textSize = Theme.Text.SmallSize,
 			parent = container,
-		}).LayoutOrder = 999
+		}).LayoutOrder =
+			999
 	end
 end
 

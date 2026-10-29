@@ -106,7 +106,8 @@ local function renderBuild(shell, store, buildController, container)
 		wrapped = true,
 		alignY = Enum.TextYAlignment.Top,
 		parent = container,
-	}).LayoutOrder = 0
+	}).LayoutOrder =
+		0
 
 	for index, entry in ipairs(unlocked) do
 		local def = BuildingConfig.get(entry.id)
@@ -134,7 +135,8 @@ local function renderBuild(shell, store, buildController, container)
 			textSize = Theme.Text.BodySize,
 			font = Theme.Font.Heading,
 			parent = card,
-		}).LayoutOrder = 1
+		}).LayoutOrder =
+			1
 
 		UIKit.label({
 			name = "Description",
@@ -146,7 +148,8 @@ local function renderBuild(shell, store, buildController, container)
 			alignY = Enum.TextYAlignment.Top,
 			automaticSize = Enum.AutomaticSize.Y,
 			parent = card,
-		}).LayoutOrder = 2
+		}).LayoutOrder =
+			2
 
 		UIKit.label({
 			name = "Cost",
@@ -160,7 +163,8 @@ local function renderBuild(shell, store, buildController, container)
 			textSize = Theme.Text.SmallSize,
 			richText = true,
 			parent = card,
-		}).LayoutOrder = 3
+		}).LayoutOrder =
+			3
 
 		local button = UIKit.primaryButton({
 			name = "Place",
@@ -193,7 +197,7 @@ end
 -- Manage tab
 -- ─────────────────────────────────────────────────────────────────────────────
 
-local function renderManage(shell, store, container)
+local function renderManage(_shell, store, container)
 	local colony = store.state.colony
 	local placements = colony and colony.buildings or {}
 
@@ -233,7 +237,8 @@ local function renderManage(shell, store, container)
 			textSize = Theme.Text.BodySize,
 			font = Theme.Font.Heading,
 			parent = card,
-		}).LayoutOrder = 1
+		}).LayoutOrder =
+			1
 
 		local healthBar = UIKit.bar({
 			name = "Condition",
@@ -245,7 +250,10 @@ local function renderManage(shell, store, container)
 		healthBar.root.LayoutOrder = 2
 		healthBar.set(placement.health or 0, placement.maxHealth or 1)
 		local fraction = (placement.health or 0) / math.max(1, placement.maxHealth or 1)
-		healthBar.setColor(fraction > 0.8 and Theme.Color.Success or (fraction > 0.5 and Theme.Color.Warning or Theme.Color.Danger))
+		healthBar.setColor(
+			fraction > 0.8 and Theme.Color.Success
+				or (fraction > 0.5 and Theme.Color.Warning or Theme.Color.Danger)
+		)
 
 		local actions = UIKit.frame({
 			name = "Actions",
@@ -322,7 +330,8 @@ local function renderManage(shell, store, container)
 					store.notified:Fire({
 						kind = "warning",
 						title = "Cannot demolish",
-						body = response.detail == "cannot_demolish" and "The Town Hall holds the colony together."
+						body = response.detail == "cannot_demolish"
+								and "The Town Hall holds the colony together."
 							or "Refused by the server.",
 					})
 				end
@@ -337,12 +346,14 @@ local function renderManage(shell, store, container)
 			UIKit.label({
 				name = "UpgradeCost",
 				size = UDim2.new(1, 0, 0, 16),
-				text = "Upgrade: " .. UIKit.formatCost(upgradeCost, ResourceConfig.Resources, store.state.storage),
+				text = "Upgrade: "
+					.. UIKit.formatCost(upgradeCost, ResourceConfig.Resources, store.state.storage),
 				textColor = Theme.Color.TextFaint,
 				textSize = Theme.Text.TinySize,
 				richText = true,
 				parent = card,
-			}).LayoutOrder = 4
+			}).LayoutOrder =
+				4
 		end
 	end
 end

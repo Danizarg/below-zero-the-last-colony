@@ -225,7 +225,7 @@ function SurvivalService:applyDamage(player, amount, source, attackerPosition)
 	return dealt
 end
 
-function SurvivalService:heal(player, amount, source)
+function SurvivalService:heal(player, amount, _source)
 	local humanoid = humanoidOf(player)
 	if not humanoid or humanoid.Health <= 0 then
 		return 0
@@ -457,10 +457,11 @@ function SurvivalService:_tickRevives()
 		local reviver = Players:GetPlayerByUserId(reviverUserId)
 		local target = Players:GetPlayerByUserId(channel.targetUserId)
 
+		--[[ Cancel if either party has left, if the target is already back up
+		     (someone else reached them first), or if the reviver has moved out
+		     of range. ]]
 		local cancel = false
-		if not reviver or not target then
-			cancel = true
-		elseif not self:isDowned(target) then
+		if not reviver or not target or not self:isDowned(target) then
 			cancel = true
 		else
 			local a = reviver.Character and reviver.Character.PrimaryPart

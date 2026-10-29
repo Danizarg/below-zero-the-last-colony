@@ -17,7 +17,6 @@ local SoundService = game:GetService("SoundService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("BelowZero")
 local AudioConfig = require(Shared.Config.AudioConfig)
-local Enums = require(Shared.Enums)
 
 local AudioController = {}
 AudioController.__index = AudioController
@@ -286,7 +285,9 @@ end
 function AudioController:applySettings()
 	local settings = self.store.state.settings or {}
 	if self._groups.Music then
-		self._groups.Music.Volume = (AudioConfig.Groups.Music.volume or 0.4) * (settings.musicVolume or 0.5) * 2
+		self._groups.Music.Volume = (AudioConfig.Groups.Music.volume or 0.4)
+			* (settings.musicVolume or 0.5)
+			* 2
 	end
 	if self._groups.SFX then
 		self._groups.SFX.Volume = (AudioConfig.Groups.SFX.volume or 0.8) * (settings.sfxVolume or 0.8)
@@ -343,7 +344,11 @@ function AudioController:start()
 			task.wait(0.28)
 			local character = player.Character
 			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			if humanoid and humanoid.MoveDirection.Magnitude > 0.1 and humanoid.FloorMaterial ~= Enum.Material.Air then
+			if
+				humanoid
+				and humanoid.MoveDirection.Magnitude > 0.1
+				and humanoid.FloorMaterial ~= Enum.Material.Air
+			then
 				self:play("footstep_stone")
 			end
 		end

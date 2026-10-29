@@ -230,7 +230,12 @@ RoomConfig.Props = {
 	mushroom_cluster = { kind = "mushrooms", count = 7, glow = true },
 	glow_pool = { kind = "pool", size = Vector3.new(16, 1, 16), glow = Color3.fromRGB(120, 220, 190) },
 	signpost = { kind = "sign", size = Vector3.new(4, 7, 1), color = Color3.fromRGB(104, 84, 60) },
-	bones = { kind = "scatter", count = 6, size = Vector3.new(2.4, 0.6, 1), color = Color3.fromRGB(192, 186, 168) },
+	bones = {
+		kind = "scatter",
+		count = 6,
+		size = Vector3.new(2.4, 0.6, 1),
+		color = Color3.fromRGB(192, 186, 168),
+	},
 	egg_sac = { kind = "sac", size = Vector3.new(4, 5, 4), color = Color3.fromRGB(176, 168, 140) },
 	webbing = { kind = "web", count = 4 },
 	rune_pillar = { kind = "pillar", size = Vector3.new(4, 14, 4), glow = Color3.fromRGB(150, 180, 255) },

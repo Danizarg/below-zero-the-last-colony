@@ -85,7 +85,12 @@ MonsterConfig.Monsters = {
 		     fight. This is what makes it a different problem from the Crawler. ]]
 		maxHealth = 400,
 		killable = false,
-		damageInterestLoss = 0.35, -- fraction of interest removed per solid hit
+		damageInterestLoss = 0.35, -- interest removed by a "solid" hit
+		--[[ What counts as a solid hit, in damage. Interest loss scales against
+		     this (clamped to 0.3x..1.5x), so an Iron Blade drives the Stalker
+		     off in roughly three hits and bare hands take about ten. Matches the
+		     Iron Blade's damage so the best melee weapon is the reference. ]]
+		interestLossReferenceDamage = 26,
 
 		walkSpeed = 9,
 		chaseSpeed = 20,

@@ -103,10 +103,7 @@ end
 
 --[[ Merge numeric maps: result[k] = a[k] + b[k]. Used for resource bundles. ]]
 function TableUtil.addMaps(a, b)
-	local out = {}
-	for key, value in pairs(a or {}) do
-		out[key] = value
-	end
+	local out = table.clone(a or {})
 	for key, value in pairs(b or {}) do
 		out[key] = (out[key] or 0) + value
 	end

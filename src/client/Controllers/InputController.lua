@@ -200,7 +200,12 @@ function InputController:useAbility()
 		elseif response.detail == "no_route" then
 			body = "No route to an exit from here."
 		end
-		self.store.notified:Fire({ kind = "warning", title = "Ability unavailable", body = body, lifetime = 3 })
+		self.store.notified:Fire({
+			kind = "warning",
+			title = "Ability unavailable",
+			body = body,
+			lifetime = 3,
+		})
 	end
 end
 
@@ -294,7 +299,10 @@ function InputController:start(mainMenu)
 	     arrives home draining stamina for no reason. ]]
 	self.store.changed:Connect(function(area)
 		if area == "zone" or area == "stats" then
-			if self._sprinting and (self.store.isDowned() or self.store.isDead() or not self.store.inExpedition()) then
+			if
+				self._sprinting
+				and (self.store.isDowned() or self.store.isDead() or not self.store.inExpedition())
+			then
 				self:setSprinting(false)
 			end
 		end

@@ -134,7 +134,10 @@ function Shell:_buildNav()
 		parent = self.hudHost,
 	})
 	UIKit.padding(bar, Theme.Space.S)
-	UIKit.list(bar, { horizontal = true, padding = Theme.Space.XS, verticalAlign = Enum.VerticalAlignment.Center })
+	UIKit.list(
+		bar,
+		{ horizontal = true, padding = Theme.Space.XS, verticalAlign = Enum.VerticalAlignment.Center }
+	)
 	self.navBar = bar
 
 	for index, item in ipairs(NAV_ITEMS) do

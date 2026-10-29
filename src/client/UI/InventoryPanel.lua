@@ -56,7 +56,7 @@ function InventoryPanel.create(shell, store)
 	}
 end
 
-function InventoryPanel.render(shell, store, container)
+function InventoryPanel.render(_shell, store, container)
 	clearChildren(container)
 
 	local inExpedition = store.inExpedition()
@@ -167,7 +167,8 @@ function InventoryPanel.render(shell, store, container)
 			text = inExpedition and "Your bag is empty. Find something worth carrying."
 				or "Nothing in storage. Take an expedition.",
 			parent = container,
-		}).LayoutOrder = 20
+		}).LayoutOrder =
+			20
 	end
 
 	-- Consumables, which are usable from here.
@@ -194,7 +195,8 @@ function InventoryPanel.render(shell, store, container)
 				textSize = Theme.Text.BodySize,
 				font = Theme.Font.Heading,
 				parent = card,
-			}).LayoutOrder = 1
+			}).LayoutOrder =
+				1
 
 			UIKit.label({
 				name = "Effect",
@@ -203,7 +205,8 @@ function InventoryPanel.render(shell, store, container)
 				textColor = Theme.Color.TextMuted,
 				textSize = Theme.Text.TinySize,
 				parent = card,
-			}).LayoutOrder = 2
+			}).LayoutOrder =
+				2
 
 			local use = UIKit.primaryButton({
 				name = "Use",
@@ -212,7 +215,8 @@ function InventoryPanel.render(shell, store, container)
 				textSize = Theme.Text.SmallSize,
 				parent = card,
 				onClick = function()
-					local response = Net.request(Routes.Request.UseConsumable, { consumableId = consumableId })
+					local response =
+						Net.request(Routes.Request.UseConsumable, { consumableId = consumableId })
 					if not response.ok then
 						store.notified:Fire({
 							kind = "warning",
@@ -247,7 +251,8 @@ function InventoryPanel.render(shell, store, container)
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = toolsCard,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	for index, toolId in ipairs(ResourceConfig.ToolOrder) do
 		local def = ResourceConfig.Tools[toolId]

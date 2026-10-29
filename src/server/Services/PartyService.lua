@@ -353,7 +353,11 @@ end
 function PartyService:publicListing()
 	local out = {}
 	for _, party in pairs(self._parties) do
-		if party.visibility == "public" and not party.expeditionStarted and self:size(party) < self:maxSize() then
+		if
+			party.visibility == "public"
+			and not party.expeditionStarted
+			and self:size(party) < self:maxSize()
+		then
 			local leader = Players:GetPlayerByUserId(party.leaderUserId)
 			table.insert(out, {
 				code = party.code,

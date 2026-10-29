@@ -91,7 +91,11 @@ function CaveBuilder.build(layout, origin, biomeId, parent)
 	local gridWidth = layout.gridWidth * CAVE.CellSize
 	local gridHeight = layout.gridHeight * CAVE.CellSize
 	local centre = origin
-		+ Vector3.new((layout.gridWidth - 1) * CAVE.CellSize / 2, 0, (layout.gridHeight - 1) * CAVE.CellSize / 2)
+		+ Vector3.new(
+			(layout.gridWidth - 1) * CAVE.CellSize / 2,
+			0,
+			(layout.gridHeight - 1) * CAVE.CellSize / 2
+		)
 
 	PartFactory.block({
 		name = "Bedrock",
@@ -127,7 +131,8 @@ function CaveBuilder.rebuildCells(built, layout, changedKeys)
 		local roomModel = built.rooms[key]
 		if cell and roomModel and roomModel.Parent then
 			local cellOrigin = RoomLibrary.cellOrigin(built.origin, cell)
-			local cellRng = Rng.new(layout.seed * 7919 + cell.x * 131 + cell.y * 17 + layout.shiftsApplied * 104729)
+			local cellRng =
+				Rng.new(layout.seed * 7919 + cell.x * 131 + cell.y * 17 + layout.shiftsApplied * 104729)
 
 			RoomLibrary.buildShell(roomModel, cell, cellOrigin, built.biome, cellRng)
 			roomModel:SetAttribute("Kind", cell.kind)

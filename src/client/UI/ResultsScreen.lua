@@ -77,7 +77,8 @@ local function resourceList(container, title, list, color, order)
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = card,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	for index, entry in ipairs(list) do
 		UIKit.label({
@@ -87,7 +88,8 @@ local function resourceList(container, title, list, color, order)
 			textColor = Theme.Color.Text,
 			textSize = Theme.Text.SmallSize,
 			parent = card,
-		}).LayoutOrder = 1 + index
+		}).LayoutOrder = 1
+			+ index
 	end
 end
 
@@ -168,7 +170,8 @@ function ResultsScreen.render(store, container)
 		textSize = Theme.Text.TitleSize,
 		font = Theme.Font.Display,
 		parent = headline,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	UIKit.label({
 		name = "Blurb",
@@ -180,7 +183,8 @@ function ResultsScreen.render(store, container)
 		alignY = Enum.TextYAlignment.Top,
 		automaticSize = Enum.AutomaticSize.Y,
 		parent = headline,
-	}).LayoutOrder = 2
+	}).LayoutOrder =
+		2
 
 	if results.keptFraction then
 		UIKit.label({
@@ -190,7 +194,8 @@ function ResultsScreen.render(store, container)
 			textColor = Theme.Color.TextFaint,
 			textSize = Theme.Text.TinySize,
 			parent = headline,
-		}).LayoutOrder = 3
+		}).LayoutOrder =
+			3
 	end
 
 	if results.rescued then
@@ -201,7 +206,8 @@ function ResultsScreen.render(store, container)
 			textColor = Theme.Color.Info,
 			textSize = Theme.Text.TinySize,
 			parent = headline,
-		}).LayoutOrder = 4
+		}).LayoutOrder =
+			4
 	end
 
 	-- Run summary.
@@ -236,12 +242,19 @@ function ResultsScreen.render(store, container)
 			label = row.label,
 			value = row.value,
 			parent = summary,
-		}).root.LayoutOrder = index
+		}).root.LayoutOrder =
+			index
 	end
 
 	resourceList(container, "Brought home", results.extractedResources, Theme.Color.Success, 3)
 	resourceList(container, "Lost", results.lostResources, Theme.Color.Danger, 4)
-	resourceList(container, "Storage was full, left behind", results.overflowResources, Theme.Color.Warning, 5)
+	resourceList(
+		container,
+		"Storage was full, left behind",
+		results.overflowResources,
+		Theme.Color.Warning,
+		5
+	)
 
 	-- Progression.
 	local progression = UIKit.frame({
@@ -264,7 +277,8 @@ function ResultsScreen.render(store, container)
 		textSize = Theme.Text.TinySize,
 		font = Theme.Font.Heading,
 		parent = progression,
-	}).LayoutOrder = 1
+	}).LayoutOrder =
+		1
 
 	UIKit.label({
 		name = "Xp",
@@ -277,7 +291,8 @@ function ResultsScreen.render(store, container)
 		textSize = Theme.Text.BodySize,
 		font = Theme.Font.Heading,
 		parent = progression,
-	}).LayoutOrder = 2
+	}).LayoutOrder =
+		2
 
 	local breakdown = {}
 	for bucket, amount in pairs(results.xpBreakdown or {}) do
@@ -292,7 +307,8 @@ function ResultsScreen.render(store, container)
 			textColor = Theme.Color.TextFaint,
 			textSize = Theme.Text.TinySize,
 			parent = progression,
-		}).LayoutOrder = 3
+		}).LayoutOrder =
+			3
 	end
 
 	local xpBar = UIKit.bar({
@@ -324,7 +340,8 @@ function ResultsScreen.render(store, container)
 		textColor = Theme.Color.Text,
 		textSize = Theme.Text.SmallSize,
 		parent = progression,
-	}).LayoutOrder = 5
+	}).LayoutOrder =
+		5
 
 	for index, unlock in ipairs(results.masteryUnlocks or {}) do
 		UIKit.label({
@@ -334,7 +351,8 @@ function ResultsScreen.render(store, container)
 			textColor = Theme.Color.Success,
 			textSize = Theme.Text.TinySize,
 			parent = progression,
-		}).LayoutOrder = 5 + index
+		}).LayoutOrder = 5
+			+ index
 	end
 
 	-- Colony rewards.
@@ -351,7 +369,8 @@ function ResultsScreen.render(store, container)
 		wrapped = true,
 		alignY = Enum.TextYAlignment.Top,
 		parent = container,
-	}).LayoutOrder = 7
+	}).LayoutOrder =
+		7
 end
 
 return ResultsScreen

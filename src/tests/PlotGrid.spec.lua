@@ -50,11 +50,7 @@ return function(suite)
 	suite:test("plots do not overlap each other", function(expect)
 		--[[ Spacing must exceed the plot size, or a building at the edge of one
 		     plot would stand inside its neighbour. ]]
-		expect.greaterThan(
-			COLONY.PlotSpacing,
-			COLONY.PlotSize,
-			"plot spacing must be larger than plot size"
-		)
+		expect.greaterThan(COLONY.PlotSpacing, COLONY.PlotSize, "plot spacing must be larger than plot size")
 	end)
 
 	suite:test("a grid cell maps to a world position and back", function(expect)
@@ -164,8 +160,16 @@ return function(suite)
 			local half = COLONY.PlotSize / 2
 
 			local spawn = PlotGrid.plotSpawnPosition(index)
-			expect.atMost(math.abs(spawn.X - centre.X), half, ("plot %d spawn is outside the plot"):format(index))
-			expect.atMost(math.abs(spawn.Z - centre.Z), half, ("plot %d spawn is outside the plot"):format(index))
+			expect.atMost(
+				math.abs(spawn.X - centre.X),
+				half,
+				("plot %d spawn is outside the plot"):format(index)
+			)
+			expect.atMost(
+				math.abs(spawn.Z - centre.Z),
+				half,
+				("plot %d spawn is outside the plot"):format(index)
+			)
 
 			local entrance = PlotGrid.caveEntrancePosition(index)
 			expect.atMost(

@@ -160,6 +160,12 @@ did not sync — check you opened the project from the repository root.
 
 **Game Settings → Security → Enable Studio Access to API Services → Save.**
 
+That setting is stored against the place on Roblox rather than in the local
+file, so a place that has never been published has nowhere to keep it:
+**File → Publish to Roblox As…** first, and set it **private**. A private
+publish is all this step needs. Making it public is a separate decision with
+its own checks — see §7.
+
 Without it, `DataService` detects the failure, falls back to an **in-memory**
 store, and says so once in the Output:
 
@@ -370,7 +376,25 @@ a layout and replay it.
 
 ---
 
-## 7. The checks you can run without Studio
+## 7. Before you make it public
+
+A **private** publish is what step 3 asks for and needs nothing more — it exists
+so Studio can reach a real DataStore. Making the place **public** is a separate
+decision, and at that point one of the knobs above stops being a convenience.
+
+| Check | State in this repository | Why it matters |
+|---|---|---|
+| `GameConfig.Debug` | `true` | **Change this.** While it is true the client may supply an expedition seed (`ExpeditionService.lua:955`), so a player can scout a cave and replay it for guaranteed loot. The test suite needs no such care — `RunTests` is gated on `RunService:IsStudio()` and cannot run on a live server — but the seed path is gated on `Debug` alone. |
+| `GameConfig.Monetization.Enabled` | `false` | Correct as it stands; leave it. Nothing in the codebase simulates a successful purchase, and with this false the shop renders products as unavailable and `ProcessReceipt` is never relied on for progression. It stays off until the purchase flow has been verified against a real Developer Product. |
+| `GameConfig.MvpContentOnly` | `true` | Correct as it stands; leave it. Turning it off exposes three roles and five buildings that are architected but **not implemented**, so players would meet `NotImplemented` refusals. |
+| `AudioConfig` asset IDs | all 38 empty | Deliberate — no asset ID in this repository was invented. The game is silent until real ones are pasted in; `AudioController` creates each `Sound`, reports the empty ID once in the Output, and never errors. |
+
+Nothing in this repository has ever run in Studio. Section 5 is outstanding work
+before a public release, not a formality.
+
+---
+
+## 8. The checks you can run without Studio
 
 Six checks, all run from the repository root, all currently green. Run them
 before a commit; the Lune ones exit non-zero on failure, so they work in CI.
@@ -509,7 +533,7 @@ here rather than silently doing nothing in Studio. (`build/` is gitignored.)
 
 ---
 
-## 8. If something goes wrong
+## 9. If something goes wrong
 
 | Symptom | Likely cause |
 |---|---|

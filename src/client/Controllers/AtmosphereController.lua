@@ -32,14 +32,22 @@ local UIKit = require(script.Parent.Parent.UI.UIKit)
 local AtmosphereController = {}
 AtmosphereController.__index = AtmosphereController
 
+--[[ Dark, but readable. The first look at this in Studio was a black frame
+     with two lantern pools in it: ambient at ten percent, fog closing in from
+     sixty studs, and every surface outside a light's range rendering as
+     void. Underground should feel enclosed, not unlit. Ambient now carries
+     the cavern shapes, the fog starts past the plot so the space reads as a
+     space, and the lights (ColonyBuilder) reach each other. Lighting
+     technology is Future (default.project.json), which is what makes point
+     lights fall off and glint on Slate and Wood instead of flat-painting it. ]]
 local COLONY_LOOK = {
-	Ambient = Color3.fromRGB(26, 24, 30),
-	OutdoorAmbient = Color3.fromRGB(32, 30, 36),
-	Brightness = 0.9,
-	FogColor = Color3.fromRGB(18, 17, 22),
-	FogStart = 60,
-	FogEnd = 520,
-	ExposureCompensation = 0.1,
+	Ambient = Color3.fromRGB(58, 54, 62),
+	OutdoorAmbient = Color3.fromRGB(64, 60, 70),
+	Brightness = 1.2,
+	FogColor = Color3.fromRGB(24, 21, 26),
+	FogStart = 140,
+	FogEnd = 700,
+	ExposureCompensation = 0.35,
 }
 
 local PHASE_LOOK = {
@@ -77,7 +85,7 @@ function AtmosphereController:_ensureAtmosphere()
 	--[[ Haze and density carry most of the "underground" read. Glare and
 	     decay are kept low because a cave has no sun to bloom. ]]
 	atmosphere.Glare = 0
-	atmosphere.Decay = Color3.fromRGB(40, 38, 44)
+	atmosphere.Decay = Color3.fromRGB(56, 50, 46)
 	self.atmosphere = atmosphere
 	return atmosphere
 end
@@ -100,9 +108,9 @@ function AtmosphereController:applyColonyLook()
 
 	local atmosphere = self:_ensureAtmosphere()
 	TweenService:Create(atmosphere, TweenInfo.new(2), {
-		Density = 0.32,
-		Haze = 1.1,
-		Color = Color3.fromRGB(80, 72, 62),
+		Density = 0.28,
+		Haze = 1.4,
+		Color = Color3.fromRGB(96, 84, 70),
 	}):Play()
 end
 

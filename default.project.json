@@ -52,7 +52,7 @@
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
-        "Technology": "ShadowMap",
+        "Technology": "Future",
         "Ambient": [0.043, 0.047, 0.067],
         "OutdoorAmbient": [0.055, 0.059, 0.082],
         "Brightness": 0.6,

@@ -226,8 +226,10 @@ local function buildCampfire(parent, origin, rng)
 		shape = Enum.PartType.Ball,
 		color = Color3.fromRGB(255, 164, 72),
 		lightColor = Color3.fromRGB(255, 176, 96),
-		range = 58,
-		brightness = 2.4,
+		--[[ The hero light of the plot: the one that casts shadows. ]]
+		range = 84,
+		brightness = 2.8,
+		shadows = true,
 		shadows = false,
 		parent = fire,
 	})
@@ -286,14 +288,14 @@ local function buildCaveEntrance(parent, origin)
 		origin = origin + Vector3.new(-18, 0, 10),
 		height = 12,
 		lightColor = Color3.fromRGB(255, 190, 120),
-		range = 40,
+		range = 56,
 		parent = entrance,
 	})
 	PartFactory.lantern({
 		origin = origin + Vector3.new(18, 0, 10),
 		height = 12,
 		lightColor = Color3.fromRGB(255, 190, 120),
-		range = 40,
+		range = 56,
 		parent = entrance,
 	})
 
@@ -407,8 +409,8 @@ local function buildPlot(parent, index)
 			origin = centre + offset + Vector3.new(0, 2, 0),
 			height = 14,
 			lightColor = Color3.fromRGB(255, 196, 132),
-			range = 62,
-			brightness = 1.4,
+			range = 96,
+			brightness = 1.8,
 			parent = plot,
 		})
 	end

@@ -178,7 +178,7 @@ established, in order of confidence:
   have no outline in Gotham and drew as boxes. Names added, `X` substituted,
   the icons swapped for neighbours of glyphs that were seen to render. The
   swaps are inferred from one screenshot and need another look.
-- **Found and fixed, not yet confirmed.** The character could not be moved,
+- **Found, fixed, confirmed on the second run.** The character could not be moved,
   and the world read as a close-up of a tan slab in darkness. Both from one
   line: `RoleService` welds a shoulder lamp onto every body, `PartFactory`
   anchors everything it makes, and an anchored part is always its assembly's
@@ -189,9 +189,13 @@ established, in order of confidence:
   spawn pad also rests on the ground now instead of inside it, and
   `SpawnOffset` moved from 118 to 72 so the player lands inside the
   campfire's light rather than 74 studs from the nearest one. No headless
-  test runs physics, so this is reasoned and asserted, not observed. If a
-  body still cannot move, the Studio **Output** window (View → Output) is
-  the first thing to capture.
+  test runs physics; the second Studio run is what confirmed the body walks.
+- **Lighting, second run — fixed, not yet judged.** The lit colony read as a
+  black frame with two lantern pools in it: ambient at ten percent, fog from
+  sixty studs, `ShadowMap` flat-painting the point lights. Now `Future`
+  lighting, roughly double ambient, fog from 140, every plot light reaching
+  the next and the campfire casting shadows (`ec95feb`, `93b54e5`). Every
+  number was chosen without seeing it; the player's screen is the review.
 - **Open, by design.** The colony starts at `3/2 colonists`:
   `StartingColonists` is 3 and TownHall level 1 houses 2, so the first hint
   is to build a Shelter. It reads as broken. Whether the fix is two starting
@@ -374,7 +378,6 @@ is the one thing this document cannot claim.
 | Migration chain is empty | The migration path has never run on real data | `Data/Migrations.lua` |
 | Rokit may not put its shims on `PATH` | Installed through WinGet, only Rokit's own directory reached the user `PATH`; `~/.rokit/bin` never did, so no new shell or reboot helps. SETUP.md §1 has the check and the fix | `rokit.toml` |
 | No rate limit on `ProximityPrompt` spam beyond the route budget | The route budgets cover it, but prompt-triggered requests are the most spammable surface | `Util/Net.lua` |
-| The movement fix is unconfirmed on screen | The anchored-lamp root cause is fixed and asserted structurally, but no headless test runs physics. If a body still cannot move, capture the Output window first | `RoleService`, `Colony.spec` |
 | A session whose store is down when it leaves loses progress since its last autosave | Inherent to an outage: the release lands in memory and nothing flushes memory back when the store recovers; the real record also keeps this server's lock until it expires | `DataService` |
 | Mid-session degradation is never shown to the client | `degraded` and `readOnly` ride only the join-time `GetProfile` reply, so a session that degrades later keeps a clean HUD | `ColonyService`, `Store` |
 | Preference routes still run on a read-only profile | `AssignJob`, `EquipTool`, `SetSetting`, `LoadoutSupplies`, `DepositBag` — harmless, since nothing is kept, but inconsistent with the rest | `NPCService`, `InventoryService` |

@@ -31,8 +31,8 @@ can get back before the tunnels rearrange themselves around you.
 > The client has since been opened in Studio once. The HUD, the networking and
 > the DataStore fallback worked first time; every panel opened blank (a ZIndex
 > bug, one line, fixed and confirmed on screen); the character could not be
-> moved — an anchored part welded to every body, one line, fixed and not yet
-> confirmed on screen. See **First Studio run** in DEVELOPMENT_STATUS.
+> moved — an anchored part welded to every body, one line, fixed and confirmed
+> on screen. See **First Studio run** in DEVELOPMENT_STATUS.
 >
 > What has **not** run is anything the Roblox engine owns: UI rendering, Instance
 > assembly, real pathfinding, real DataStores and real multiplayer. See

@@ -33,6 +33,17 @@ lune run tools/run-tests
 
 ## 1. Install the toolchain
 
+The source lives in a private GitHub repository,
+<https://github.com/Danizarg/below-zero-the-last-colony>; the owner adds
+collaborators there. If you are reading this anywhere other than a checkout:
+
+```bash
+git clone https://github.com/Danizarg/below-zero-the-last-colony.git
+```
+
+The place file is not in it — `*.rbxl` is build output and ignored. §2 builds
+it from `src/`.
+
 You need two things: the **Rojo CLI** (to turn `src/` into something Studio can
 open) and the **Rojo Studio plugin** (to receive the sync). Pick one install
 route.

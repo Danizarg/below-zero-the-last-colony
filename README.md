@@ -9,7 +9,7 @@ can get back before the tunnels rearrange themselves around you.
 > engine behaviour untested.**
 >
 > ```
-> rojo build                   pass (1.2 MB place file)
+> rojo build                   pass (504 KB place file)
 > selene src                   0 errors, 0 warnings, 0 parse errors
 > stylua --check src tools     clean
 > lune run tools/run-tests     129 passed, 0 failed

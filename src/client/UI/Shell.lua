@@ -54,7 +54,20 @@ function Shell.new(store)
 	gui.Name = "BelowZeroUI"
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+	--[[ Sibling, NOT Global. Under Global a GuiObject's ZIndex is compared
+	     across the whole ScreenGui, so a panel's contents — built through
+	     UIKit, which defaults frames and labels to ZIndex 1 — rendered behind
+	     the opaque panel card that holds them, drawn at Theme.ZIndex.Panel.
+	     Every panel in the game opened as a blank block, title bar included;
+	     the HUD survived only because its host frame is fully transparent and
+	     so occludes nothing. No panel module sets zIndex anywhere, and none
+	     should have to.
+
+	     Under Sibling a GuiObject always draws in front of its parent, and the
+	     five hosts below are siblings whose ZIndex orders their entire
+	     subtrees — which is exactly the layering documented at the top of this
+	     file, and what the Theme.ZIndex constants were written for. ]]
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = 10
 	gui.Parent = player:WaitForChild("PlayerGui")
 	self.gui = gui

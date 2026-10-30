@@ -466,7 +466,9 @@ function UIKit.panel(props)
 		size = UDim2.fromOffset(Theme.MinTouchTarget, Theme.MinTouchTarget),
 		position = UDim2.new(1, -Theme.Space.S, 0.5, 0),
 		anchor = Vector2.new(1, 0.5),
-		text = "✕",
+		--[[ A plain capital X. U+2715 has no glyph in Gotham and rendered as an
+		     empty box on every panel header. ]]
+		text = "X",
 		textSize = Theme.Text.SubheadingSize,
 		color = Theme.Color.Field,
 		radius = Theme.Radius.M,

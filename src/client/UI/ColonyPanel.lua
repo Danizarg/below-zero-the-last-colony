@@ -362,7 +362,12 @@ local function renderColonists(_shell, store, container)
 			if jobId == Enums.Job.Idle or total then
 				local button = UIKit.button({
 					name = "Job_" .. jobId,
-					text = ("%s %s"):format(candidate.icon, total and ("%d/%d"):format(used, total) or ""),
+					--[[ The NAME, not the icon. This read `icon .. " " .. count`, which
+					     for Idle is the single character "·" and for every other job is a
+					     bare glyph — nothing on the button said what you were assigning,
+					     and several of those glyphs have no outline in Gotham anyway. The
+					     grid cell is a quarter of the card, so the word fits. ]]
+					text = total and ("%s %d/%d"):format(candidate.name, used, total) or candidate.name,
 					textSize = Theme.Text.TinySize,
 					color = isCurrent and Theme.Color.Accent or Theme.Color.Field,
 					textColor = isCurrent and Theme.Color.TextInverse or Theme.Color.Text,

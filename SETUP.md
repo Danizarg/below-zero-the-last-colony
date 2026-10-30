@@ -7,11 +7,11 @@ look at.
 
 | Check | Result |
 |---|---|
-| `rojo build -o build/BelowZero.rbxlx` | pass, 1,213 KB |
-| `selene src` | 0 errors, 0 warnings, **0 parse errors** across 84 files |
+| `rojo build -o build/BelowZero.rbxlx` | pass, 1,272 KB |
+| `selene src` | 0 errors, 0 warnings, **0 parse errors** across 85 files |
 | `stylua --check src tools` | clean |
 | `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
-| `lune run tools/run-integration` | **116 passed, 0 failed** in 10s |
+| `lune run tools/run-integration` | **128 passed, 0 failed** in 10s |
 | `lune run tools/load-check` | **67 of 67 modules load** |
 
 **What has not been verified**: anything the Roblox engine owns. UI actually
@@ -424,21 +424,22 @@ specs Studio runs.
 
 ### `lune run tools/run-integration`
 
-All 116 integration specs: a fresh server booted per test, then real gameplay
+All 128 integration specs: a fresh server booted per test, then real gameplay
 driven through it.
 
 ```
 [integration] booting a simulated server per test
-[integration] loaded 8 spec file(s)
+[integration] loaded 9 spec file(s)
 [BZ/Test] PASS  Clock                  14 passed, 0 failed, 0 skipped
 [BZ/Test] PASS  Colony                 16 passed, 0 failed, 0 skipped
 [BZ/Test] PASS  Death                  13 passed, 0 failed, 0 skipped
 [BZ/Test] PASS  Disconnect             12 passed, 0 failed, 0 skipped
-[BZ/Test] PASS  Expedition             16 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Expedition             17 passed, 0 failed, 0 skipped
 [BZ/Test] PASS  Monsters               16 passed, 0 failed, 0 skipped
-[BZ/Test] PASS  Offline                14 passed, 0 failed, 0 skipped
-[BZ/Test] PASS  Persistence            15 passed, 0 failed, 0 skipped
-[integration] OK: 116 tests passed in 9.9s
+[BZ/Test] PASS  Offline                15 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Persistence            17 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Production             8 passed, 0 failed, 0 skipped
+[integration] OK: 128 tests passed in 9.7s
 ```
 
 `tools/sim.luau` is what makes this possible, and it had to model the Instance

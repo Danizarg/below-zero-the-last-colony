@@ -17,15 +17,15 @@ The toolchain is installed, so these all genuinely ran:
 
 | Check | Command | Result |
 |---|---|---|
-| Rojo builds the place file | `rojo build -o build/BelowZero.rbxlx` | **pass** — 1,213 KB. Rojo validates every `$properties` name and type against its reflection database, so the Lighting, Players and Workspace properties are all real |
-| Luau parses, via a real parser | `selene src` | **0 parse errors** across all 84 files |
+| Rojo builds the place file | `rojo build -o build/BelowZero.rbxlx` | **pass** — 1,272 KB. Rojo validates every `$properties` name and type against its reflection database, so the Lighting, Players and Workspace properties are all real |
+| Luau parses, via a real parser | `selene src` | **0 parse errors** across all 85 files |
 | Static analysis | `selene src` | **0 errors, 0 warnings** |
 | Formatting | `stylua --check src tools` | **clean** (44 files were reformatted to get there) |
 | Unit suite, headless | `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
-| Integration suite, headless | `lune run tools/run-integration` | **116 passed, 0 failed** in 10s — a fresh server booted per test, playing real expeditions. 10 consecutive runs, identical |
+| Integration suite, headless | `lune run tools/run-integration` | **128 passed, 0 failed** in 10s — a fresh server booted per test, playing real expeditions. Repeated runs, identical |
 | Every module loads | `lune run tools/load-check` | **67 of 67 ModuleScripts load** |
-| Every constant reference resolves | `lune run tools/ref-check` | **4,563 references, 0 dangling** — no mistyped enum, route or theme token anywhere |
-| Every cross-service call is real | `lune run tools/call-check` | **316 calls, 0 broken** — no typo'd `self.context.X:method()`, none over-applied |
+| Every constant reference resolves | `lune run tools/ref-check` | **4,699 references, 0 dangling** — no mistyped enum, route or theme token anywhere |
+| Every cross-service call is real | `lune run tools/call-check` | **320 calls, 0 broken** — no typo'd `self.context.X:method()`, none over-applied |
 | Structural check | `node` heuristic over block/bracket balance | **0 problems** |
 
 **What that does and does not mean.** The pure logic is genuinely tested: the
@@ -92,11 +92,14 @@ wrong, which is what the adversarial pass is for.
 DataModel: a hand-written Instance tree with working signals, a virtual clock
 driving `os.clock`, `os.time` and all of `task`, a second clock that moves
 `os.time()` alone so hours can pass with the server idle, and a real in-memory
-DataStore with genuine `UpdateAsync` read-modify-write semantics. 116 tests
-across 8 spec files then play the game through it.
+DataStore with genuine `UpdateAsync` read-modify-write semantics. 128 tests
+across 9 spec files then play the game through it.
 
-It found **eight bugs**, four of them in code that had already passed static
-analysis, a six-dimension semantic review and 129 unit tests:
+It found **thirteen bugs**. Eight in its first week, four of those in code that
+had already passed static analysis, a six-dimension semantic review and 129
+unit tests; five more since, found by specs written to close the gaps the
+first eight left, and by a sweep over every place the server consults session
+state:
 
 | Bug | Consequence | Found by |
 |---|---|---|
@@ -108,10 +111,15 @@ analysis, a six-dimension semantic review and 129 unit tests:
 | `BuildingService:_afterChange` pushed the colony snapshot *before* reassigning workers | After a demolition the client was still told the job usage of a building that was gone, and went on being told it until some later push happened to correct it. Cosmetic, but it reads as a lost worker | `Colony.spec` |
 | The offline notice read out what the colonists *made*, not what storage *took* | `addToStorage` truncates at the colony cap, so a returning player with a full store was told their colonists had produced **5,295 mushrooms when five units fit**. Same class as acknowledging a write that only reached RAM: someone is left counting on resources that are not there | `Offline.spec` |
 | `_settleOffline` settled, and announced, a **read-only** session | `profileLoaded` fires for a read-only entry exactly as for a healthy one. A profile whose migration was refused — a rollback after a schema bump — got up to eight hours of production, a notice saying so, and no write of any of it. It also moved `lastProductionAt` in memory, so the absence was not even owed any more | `Offline.spec` |
+| A tick that only *spent* moved storage without pushing it | `simulate` writes `storage.items` directly; the only push in the function sits in the deposit loop behind `added > 0`, and the colony snapshot carries no storage. A Cook eating the larder down showed the player nothing — a stale resource strip, stale units, a Craft button still enabled for a recipe the server would refuse | `Production.spec` |
+| The online production tick ran for **read-only** sessions | Gated on `isLoaded`, which a read-only session satisfies. Storage spent, output banked, food, condition, research and skill advanced and pushed every ten seconds for the whole session, none of it ever written. The online twin of the `_settleOffline` bug above | read-only sweep, `Offline.spec` |
+| A load that fell back to memory handed out a **writable** template | After five failed DataStore attempts the load re-ran its transform against memory, got a fresh template for a player memory had never seen, and accepted it as loaded and writable. The first autosave after the store recovered wrote that template over the real record and reported success — a new colony replacing a veteran's. Fixed by provenance: a memory-born session is pinned to memory for life and never written to the store, so it stays playable (Studio without API access depends on that) and the real record survives | read-only sweep, `Persistence.spec` |
+| A load refused by migration kept the lock it took | The lock is written by the load transform before anything looks at the version; a read-only session never saves and so never released it, and every other server showed the player a starter colony "because another server still holds your save" for the full lock timeout | read-only sweep, `Persistence.spec` |
+| A read-only session could run a whole expedition | Start, settlement, XP, levels, role mastery, the haul and banked keys were all gated on `isLoaded` — announced in full, lost at the door | read-only sweep, `Expedition.spec` |
 
-All eight are fixed, and each has a test that now asserts the **fixed**
-behaviour and fails if it regresses. Both of the last two were verified by
-mutation: putting the old code back fails exactly those tests and nothing else.
+All thirteen are fixed, and each has a test that asserts the **fixed**
+behaviour and fails if it regresses. The last seven were verified by mutation:
+putting the old code back fails exactly that test and nothing else.
 
 It also found a defect in the test suite itself, which is worth recording
 because it is the failure mode that makes a harness worse than no harness.
@@ -148,6 +156,40 @@ having built it:
   still open. A save suspended in its retry backoff woke up, saw an empty
   `lockJobId`, and wrote its own jobId back over a lock nobody held — leaving the
   player's next server read-only for the full two-minute lock timeout.
+
+### First Studio run
+
+Everything above was verified headlessly. The place has now been opened in
+Studio once, on a session without DataStore API access. What that first look
+established, in order of confidence:
+
+- **Works first time.** The server boots, the client connects, the HUD fills
+  from the profile — colony card, resource bar, NEXT hint — and the DataStore
+  fallback is detected and reported on the HUD exactly as designed.
+- **Found and fixed, confirmed by a second screenshot.** Every panel opened as
+  an empty block. `Shell.lua` set `ZIndexBehavior.Global`, under which a
+  panel's contents — UIKit defaults to ZIndex 1 — drew behind the opaque panel
+  card at ZIndex 50. One line; now `Sibling`. The first change in this project
+  verified by something rendering rather than by a test.
+- **Found and fixed, not yet confirmed.** Job buttons carried only an icon (for
+  Idle, literally `·`) and no name; the close glyph `✕` and five resource icons
+  have no outline in Gotham and drew as boxes. Names added, `X` substituted,
+  the icons swapped for neighbours of glyphs that were seen to render. The
+  swaps are inferred from one screenshot and need another look.
+- **Open.** The character cannot be moved, and the world reads as a close-up
+  of a tan slab in darkness. Nothing static explains it: the cavern floor
+  exists, `applyMovement` defaults to 15, the spawn is `pcall`-guarded with a
+  `log:fault`. The one thing that settles it is the Studio **Output** window
+  (View → Output): a `[BZ/…] FAULT` line or a red stack trace. Capture that
+  before anything else.
+- **Open, by design.** The colony starts at `3/2 colonists`:
+  `StartingColonists` is 3 and TownHall level 1 houses 2, so the first hint
+  is to build a Shelter. It reads as broken. Whether the fix is two starting
+  colonists or three beds is a balance decision, deliberately not made here.
+
+No test covers any of this and none can today: the integration harness boots
+server services and never instantiates client UI. [SETUP.md](SETUP.md) §5
+owns it.
 
 ---
 
@@ -277,15 +319,16 @@ is the one thing this document cannot claim.
 | PlotGrid spec | ✅ | 14 tests: round-trips, snapping, bounds, overlap |
 | Module load check | ✅ | `lune run tools/load-check` requires all 67 ModuleScripts. Selene proves code parses; this proves it loads, which is the failure that takes a server down at startup |
 | Simulated server | ✅ | `tools/sim.luau` boots all 16 services against a modelled DataModel: working signals, a virtual clock over `os.clock`/`os.time`/`task`, a separate wall clock that moves `os.time()` alone so hours can pass with the server idle, `rejoin` for bringing the same account back, and an in-memory DataStore with real `UpdateAsync` semantics. Lune's own `Instance` could not be used — `@lune/roblox` manipulates place files, so it has no signals and cannot derive `Position` from `CFrame` |
-| Expedition spec | ✅ | 16 tests: the key banking regression end to end, re-settle hammering, harvest and depletion, range, cross-session, extraction gating, abandon recovery, per-player loot, world-slot isolation |
+| Expedition spec | ✅ | 17 tests: the key banking regression end to end, re-settle hammering, harvest and depletion, range, cross-session, extraction gating, abandon recovery, per-player loot, world-slot isolation |
 | Monsters spec | ✅ | 16 tests: the Crawler is killable and the Stalker is not, damage-scaled interest loss, no spawns in safe rooms, difficulty scaling, every refusal path, the 1-HP floor, downed immunity |
 | Clock spec | ✅ | 14 tests: prep → day → dusk → night on the configured durations, no phase ending early, one announcement per boundary, the duration contract, the shift schedule and its two warnings, layout validity after every shift, timeout settlement and teardown |
 | Death spec | ✅ | 13 tests: the clamp that makes instant death impossible, the downed window per difficulty, the R2 death loop, the R5 corpse reuse, the solo rescue window, revive channelling and interruption, death settlement |
 | Disconnect spec | ✅ | 12 tests: the R8 haul and key banking, mid-load disconnect releasing the lock, party and session teardown, abandon as the contrast case |
-| Persistence spec | ✅ | 15 tests: session locking across two servers sharing one store, the read-only fallback, degradation and recovery, the late-write guard, idempotent receipts, autosave refresh. Tuning constants are matched out of the service's own source rather than hard-coded |
+| Persistence spec | ✅ | 17 tests: session locking across two servers sharing one store, the read-only fallback, degradation and recovery, the late-write guard, idempotent receipts, autosave refresh. Tuning constants are matched out of the service's own source rather than hard-coded |
 | Colony spec | ✅ | 16 tests: placement, upgrade, repair, demolition and their exact costs and refunds, grid bounds and overlap, visitor isolation, worker assignment and production, storage atomicity on every refusal |
-| Offline spec | ✅ | 14 tests: an absence is paid once and only once, capped at 8 hours with the remainder discarded rather than banked, reduced against the same time played, settled before the returning player's first snapshot, reported as what storage took rather than what was made, never granted into a session that cannot be written, and never below the condition floor or short a colonist |
-| Integration test run | ✅ | `lune run tools/run-integration` runs all 116 in 10s against a fresh server per test; exits non-zero, so it can gate a commit or CI. 10 consecutive runs gave identical results |
+| Offline spec | ✅ | 15 tests: an absence is paid once and only once, capped at 8 hours with the remainder discarded rather than banked, reduced against the same time played, settled before the returning player's first snapshot, reported as what storage took rather than what was made, never granted into a session that cannot be written, and never below the condition floor or short a colonist |
+| Production spec | ✅ | 8 tests: a job that cannot pay its inputs does not work and spends nothing — with the `pairs` precondition asserted so a change in iteration order fails loudly — a stocked larder as the control, a spend-only tick still pushing storage and withdrawing a recipe the colonists ate out of reach, the buildings-only food rate pinned against the real one, condition decay to the unit and a Guard holding it, one job's `skillGain` per worked tick and none for an idler |
+| Integration test run | ✅ | `lune run tools/run-integration` runs all 128 in 10s against a fresh server per test; exits non-zero, so it can gate a commit or CI. 10 consecutive runs gave identical results |
 | Headless test run | ✅ | `tools/harness.luau` builds a fake instance tree over the real files and supplies the datatypes Lune lacks. `lune run tools/run-tests` runs all 129 in 0.7s; exits non-zero, so it can gate a commit or CI |
 
 ---
@@ -319,8 +362,11 @@ is the one thing this document cannot claim.
 | Cosmetics are owned and equipped but never rendered | The shop grants nothing visible | `MonetizationService` |
 | `Watchtower.shiftWarningBonus` is summed but never read | Config promises an effect that does nothing | `BuildingConfig`, `ExpeditionService` |
 | Migration chain is empty | The migration path has never run on real data | `Data/Migrations.lua` |
-| Rokit needs a new shell after install | Its shims land in `~/.rokit/bin`, which an already-open terminal does not see | `rokit.toml` |
+| Rokit may not put its shims on `PATH` | Installed through WinGet, only Rokit's own directory reached the user `PATH`; `~/.rokit/bin` never did, so no new shell or reboot helps. SETUP.md §1 has the check and the fix | `rokit.toml` |
 | No rate limit on `ProximityPrompt` spam beyond the route budget | The route budgets cover it, but prompt-triggered requests are the most spammable surface | `Util/Net.lua` |
+| The character cannot be moved in Studio | Blocks hands-on testing. Seen once, on a degraded session; nothing static explains it. The Output window is the first thing to capture | `ColonyService`, `RoleService`, client controllers |
+| Several icons may still render as boxes | Gotham lacks the glyphs; five resource icons were swapped on the strength of one screenshot and the job icons were not touched | `ResourceConfig`, `JobConfig` |
+| The colony starts at 3/2 colonists | Reads as broken: `StartingColonists` is 3 against TownHall housing of 2 | `GameConfig`, `BuildingConfig` |
 
 ---
 
@@ -372,17 +418,15 @@ the whole shop feel fake.
 
 ### 5. The gaps the simulation still cannot reach
 
-Done, and it found eight bugs — see **What the simulation found** above. What it
+Done, and it found thirteen bugs — see **What the simulation found** above. What it
 deliberately leaves uncovered, each for a stated reason, is the honest next
 increment:
 
-- **A job that cannot pay its inputs.** `simulate` resolves a job's inputs,
-  checks them, then spends them, so a job that cannot pay spends nothing. That
-  invariant is not reachable from `Offline.spec`: at 50% efficiency every
-  per-tick input quantises below one whole unit, so a job sometimes needs
-  nothing and legitimately works for free. It belongs with online production,
-  where the scale is 1 — and the only job with inputs that is reachable at all
-  is the Cook, which needs a level-2 Farm.
+- ~~**A job that cannot pay its inputs.**~~ Covered since: `Production.spec`
+  reaches it online, at the skill where the Cook's mushroom is certain on
+  every tick, and asserts the `pairs` precondition so a change in iteration
+  order fails loudly rather than going quietly vacuous. Writing it is what
+  found the storage-push bug above.
 - **`productionMult`.** Only level-2 buildings carry it, so asserting it means
   funding an upgrade and then separating an 8% multiplier from a probabilistic
   path.
@@ -401,6 +445,13 @@ increment:
   ceiling and the whole shallow curve is skipped. `Offline.spec` pins the
   invariant — it stops at the ceiling — and records the tension; see open
   question 5 in [GAME_DESIGN.md](GAME_DESIGN.md).
+- **Building food ignores the offline scale too.** `effects.foodPerTick` is
+  never multiplied by `globalMult`, where `efficiencyScale` lives — and it
+  ignores it online as well, so an absence yields the same food as being
+  present. Not an exploit, but not what "50% offline" says either.
+  `Offline.spec` pins the arithmetic as it is. Same category as skill: a
+  one-line change and a balance decision, recorded in GAME_DESIGN.md rather
+  than made quietly.
 - **Anything visual.** `workspace:Raycast` returns nil and nothing renders, so the
   shift tests assert on the *layout* — doors, reachability, validity — not on
   geometry. The spectate overlay and the ability cooldown shade are the two

@@ -278,7 +278,9 @@ would make early colonists feel worthless.
 
 ### Offline production
 
-- Enabled, capped at **8 hours**, scaled to **50% efficiency**.
+- Enabled, capped at **8 hours**, scaled to **50% efficiency** — for the
+  colonists' work. Building output (`foodPerTick`) and what colonists eat run
+  at full rate whether anyone is present or not.
 - Condition decays at 1.5/hour but is **floored at 55**.
 
 The cap and the efficiency penalty together mean logging off is never the optimal
@@ -290,7 +292,8 @@ makes people quit.
 For **skill** it is not true, and the code is what it is rather than what this
 paragraph used to claim: `skillGain` is granted flat per tick and is not touched
 by the 50% scale, so half an hour of absence takes a colonist from 1 to the
-ceiling. See open question 5.
+ceiling. Building-sourced food is unscaled too, online and offline alike, so an
+absence is neutral for food rather than penalised. See open question 5.
 
 ---
 
@@ -633,6 +636,9 @@ the current value:
    `efficiencyScale` is a one-line change in `NPCService:simulate`; it is a
    progression decision rather than a correctness fix, so it has deliberately
    not been made. `Offline.spec` asserts the invariant that holds either way —
-   skill stops at the ceiling.
+   skill stops at the ceiling. Building food has the same shape:
+   `effects.foodPerTick` is never multiplied by the scale, online or offline, so
+   an absence is neutral for food — not an exploit, but not 50% either.
+   `Offline.spec` pins the arithmetic as it is.
 6. **Is the 10-second production tick too coarse?** It makes the resource strip
    jump rather than tick.

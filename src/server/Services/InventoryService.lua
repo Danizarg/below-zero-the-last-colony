@@ -440,6 +440,10 @@ function InventoryService:useConsumable(player, consumableId)
 	if not def then
 		return { ok = false, reason = Enums.Reject.BadRequest }
 	end
+	--[[ Consumes storage or the bag, both profile state. ]]
+	if self.context.DataService:isReadOnly(player) then
+		return { ok = false, reason = Enums.Reject.NotLoaded, detail = "read_only" }
+	end
 
 	local inColony = self.context.ColonyService:zoneOf(player) == Enums.Zone.Colony
 	local source = inColony and self:storageOf(player) or self:bagOf(player)

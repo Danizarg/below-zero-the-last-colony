@@ -328,6 +328,16 @@ return function(suite, context)
 		     both pass, so the first autosave after recovery has run. ]]
 		server.dataStoreBroken = false
 		server.advance(120, 1)
+		--[[ Recovery is lazy: the server only notices the store is back when
+		     something asks for it. So "not degraded any more" proves the
+		     autosave ran against a REAL store inside the window — and the pin is
+		     therefore the only thing that stopped the write. Without this, a
+		     retune of the retry or autosave intervals could leave the whole
+		     second half passing with nothing having been attempted. ]]
+		expect.falsy(
+			colony.Data:isDegraded(),
+			"the store never recovered inside the window, so no autosave reached it and nothing below is tested"
+		)
 		expect.equal(
 			colony.record().colony.food,
 			777,
@@ -344,8 +354,21 @@ return function(suite, context)
 		expect.equal(
 			colony.record().meta.lockJobId,
 			"",
-			"the real record was left locked by a session that never held it"
+			"the real record is locked after a session that never took its lock"
 		)
+
+		--[[ The outage itself is reported as a fault, so a blanket assertNoErrors
+		     would fail on the thing this test stages. Anything ELSE — a save()
+		     that threw inside the autosave, say — would be a second way for the
+		     777 check to pass for the wrong reason, so every error is inspected. ]]
+		for _, message in ipairs(server.errors) do
+			expect.truthy(
+				message:find("DataStore", 1, true)
+					or message:find("outage", 1, true)
+					or message:find("PERSISTING", 1, true),
+				"an error unrelated to the staged outage: " .. message
+			)
+		end
 	end)
 
 	suite:test("a session refused by migration hands back the lock it took on the way in", function(expect)
@@ -362,7 +385,12 @@ return function(suite, context)
 		     "because another server still holds your save" until LOCK_TIMEOUT. ]]
 		local Migrations = server.require(server.shared.Data.Migrations)
 		record.version = Migrations.Target + 1
+		--[[ A number, not the table: the store hands records across by value, so
+		     `after` below is a different table and the comparison means something
+		     — but a number cannot alias under any harness. ]]
+		local storedFood = record.colony.food
 		colony.player = server.rejoin(colony.player)
+		expect.truthy(colony.Data:isLoaded(colony.player), "the session never loaded")
 		expect.truthy(
 			colony.Data:isReadOnly(colony.player),
 			"a profile from a newer build was loaded for writing"
@@ -370,7 +398,7 @@ return function(suite, context)
 
 		local after = colony.record()
 		expect.equal(after.version, Migrations.Target + 1, "the newer profile was downgraded")
-		expect.equal(after.colony.food, record.colony.food, "the newer profile's data was altered")
+		expect.equal(after.colony.food, storedFood, "the newer profile's data was altered")
 		expect.equal(
 			after.meta.lockJobId,
 			"",
@@ -380,6 +408,57 @@ return function(suite, context)
 		server.disconnect(colony.player)
 		expect.equal(colony.record().meta.lockJobId, "", "leaving re-took the lock")
 		server.assertNoErrors(expect, "refused migration lock")
+	end)
+
+	suite:test("a read-only session is refused by every colony mutation", function(expect)
+		--[[ Every path that writes the profile, not only the three the sweep
+		     found first. Each refuses with the same reason and detail, so the
+		     client can say the same true thing in every panel. ]]
+		local colony = startColony("Alice", { jobId = "job-a" })
+		local server = colony.server
+		server.disconnect(colony.player)
+		local record = colony.record()
+		expect.truthy(record, "nothing was written, so there is no record to make newer")
+		local storedColonists = #record.colony.colonists
+		record.version = server.require(server.shared.Data.Migrations).Target + 1
+		colony.player = server.rejoin(colony.player)
+		local player = colony.player
+		expect.truthy(colony.Data:isLoaded(player), "the session never loaded")
+		expect.truthy(colony.Data:isReadOnly(player), "a profile from a newer build was loaded for writing")
+
+		local reply = server.invoke(player, colony.Routes.Request.GetProfile)
+		expect.truthy(reply.ok, "GetProfile refused a read-only session")
+		expect.truthy(reply.readOnly, "the client is not told the session is read-only")
+		expect.equal(
+			reply.readOnlyReason,
+			"newer_build",
+			"the client is told the wrong reason, so the HUD gives the wrong advice"
+		)
+
+		local ResourceConfig = server.require(server.shared.Config.ResourceConfig)
+		local RoleConfig = server.require(server.shared.Config.RoleConfig)
+		local townHall = colony.profile().colony.buildings[1]
+		expect.truthy(townHall, "the profile has no building to repair")
+		local consumableId = next(ResourceConfig.Consumables)
+		expect.truthy(consumableId, "no consumable is configured")
+
+		local attempts = {
+			repair = server.services.BuildingService:repair(player, townHall.uid),
+			recruit = server.services.NPCService:recruit(player),
+			useConsumable = server.services.InventoryService:useConsumable(player, consumableId),
+			setRole = server.services.RoleService:setRole(player, RoleConfig.Default),
+		}
+		for name, result in pairs(attempts) do
+			expect.falsy(result.ok, name .. " succeeded on a session that will never be written")
+			expect.equal(
+				result.reason,
+				colony.Enums.Reject.NotLoaded,
+				name .. ": refused for the wrong reason"
+			)
+			expect.equal(result.detail, "read_only", name .. ": the refusal does not say why")
+		end
+		expect.equal(#colony.profile().colony.colonists, storedColonists, "recruit added a colonist anyway")
+		server.assertNoErrors(expect, "read-only refusals")
 	end)
 
 	-- ── Degradation honesty ──────────────────────────────────────────────────

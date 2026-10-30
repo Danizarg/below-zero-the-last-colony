@@ -500,7 +500,10 @@ function ExpeditionPanel.render(shell, store, container, state)
 				shell:close()
 			else
 				local body = "The server refused."
-				if response.detail == "not_all_ready" then
+				if response.detail == "read_only" then
+					body =
+						"Your save is read-only this session, so an expedition could not be kept. Rejoin later."
+				elseif response.detail == "not_all_ready" then
 					body = "Everyone in the party has to be ready."
 				elseif response.detail == "not_leader" then
 					body = "Only the party leader can start."

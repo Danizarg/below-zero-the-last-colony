@@ -459,7 +459,9 @@ local function renderCrafting(_shell, store, container)
 					store.notified:Fire({
 						kind = "warning",
 						title = "Cannot craft",
-						body = response.reason == Enums.Reject.NotEnoughResources and "Not enough resources."
+						body = response.detail == "read_only"
+								and "Your save is read-only this session, so nothing can be crafted."
+							or response.reason == Enums.Reject.NotEnoughResources and "Not enough resources."
 							or "You need the right building, at the right level.",
 					})
 				end

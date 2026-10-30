@@ -825,6 +825,13 @@ return function(suite, context)
 		local foodBefore = colony.profile().colony.food
 		colony.server.clearPushes()
 
+		--[[ Positive control: a WRITABLE session on the same server, over the
+		     same ticks. If it does not move either, the ticks never ran — or ran
+		     and threw — and "nothing moved" below would be true for the wrong
+		     reason. ]]
+		local bob = colony.server.addPlayer("Bob")
+		local bobBefore = colony.services.DataService:get(bob).colony.condition
+
 		local ticks = 12
 		colony.server.advance(ticks * colony.NPC.ProductionTickSeconds + 1, 1)
 
@@ -842,6 +849,10 @@ return function(suite, context)
 			#colony.server.pushes(colony.player, colony.Routes.Push.ColonySync),
 			0,
 			"the client was shown colony progress that is thrown away the moment they leave"
+		)
+		expect.truthy(
+			colony.services.DataService:get(bob).colony.condition < bobBefore,
+			"the writable session on the same server did not decay either, so the ticks never ran and the assertions above prove nothing"
 		)
 		colony.server.assertNoErrors(expect, "read-only online tick")
 	end)

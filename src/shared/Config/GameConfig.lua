@@ -67,8 +67,13 @@ GameConfig.Colony = {
 	CavernHeight = 190,
 
 	--[[ Where a player spawns when they arrive in their own colony. Offset from
-	     plot centre. ]]
-	SpawnOffset = Vector3.new(0, 4, 118),
+	     plot centre — and inside the campfire's light. The fire sits at z 44
+	     with a 58-stud range; the corner lanterns at (±146, ±146) reach 62. At
+	     the old z 118 the nearest light was 74 studs away, so a correctly
+	     spawned player arrived in the dark and the first Studio session read
+	     the scene as broken. 72 is 28 studs from the fire and 50 clear of the
+	     Town Hall's +z face. ]]
+	SpawnOffset = Vector3.new(0, 4, 72),
 
 	--[[ Cave entrance position, offset from plot centre. Interacting with it
 	     opens the expedition panel. ]]

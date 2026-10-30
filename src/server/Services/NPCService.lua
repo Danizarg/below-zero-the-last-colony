@@ -211,6 +211,10 @@ function NPCService:recruit(player)
 	if not plotIndex then
 		return { ok = false, reason = permissionReason }
 	end
+	--[[ Recruiting spends food and adds a colonist to the profile. ]]
+	if self.context.DataService:isReadOnly(player) then
+		return { ok = false, reason = Enums.Reject.NotLoaded, detail = "read_only" }
+	end
 
 	local profile = self.context.DataService:get(player)
 	if not profile then

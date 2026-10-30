@@ -204,12 +204,26 @@ function RoleService:_applyAppearance(_player, character, resolved)
 		brightness = 1.4,
 		parent = kit,
 	})
+	--[[ Unanchored, and placed where the weld will hold it, BEFORE the weld
+	     exists. PartFactory anchors everything it makes and glow() does not
+	     forward `anchored`, so the lamp was born Anchored at the world origin.
+	     An anchored part is always its assembly's root, so the Weld below was
+	     satisfied by moving the CHARACTER: every body spawned into the colony
+	     was dragged to (0, 0, 0), half inside the floor, and frozen there. The
+	     first Studio session could not move and could not see why. The
+	     simulated character has a torso now precisely so this part gets built
+	     headlessly; Colony.spec asserts nothing welded to a body is anchored.
+	     Mirrors MonsterBase's eye. ]]
+	lamp.Anchored = false
+	lamp.CanCollide = false
 	lamp.Massless = true
+	local offset = CFrame.new(0.9, 0.4, -0.6)
+	lamp.CFrame = torso.CFrame * offset
 
 	local weld = Instance.new("Weld")
 	weld.Part0 = torso
 	weld.Part1 = lamp
-	weld.C0 = CFrame.new(0.9, 0.4, -0.6)
+	weld.C0 = offset
 	weld.Parent = lamp
 end
 
@@ -520,6 +534,10 @@ function RoleService:setRole(player, roleId)
 	     would let a party carry one of everything and switch on demand. ]]
 	if self.context.ExpeditionService:sessionOf(player) then
 		return { ok = false, reason = Enums.Reject.WrongZone, detail = "in_expedition" }
+	end
+	--[[ A role choice is progression, written to the profile. ]]
+	if self.context.DataService:isReadOnly(player) then
+		return { ok = false, reason = Enums.Reject.NotLoaded, detail = "read_only" }
 	end
 
 	local profile = self.context.DataService:get(player)

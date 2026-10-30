@@ -379,6 +379,7 @@ function DataService:load(player)
 		)
 		entry.data = ProfileTemplate.create(os.time(), player.Name)
 		entry.readOnly = true
+		entry.readOnlyReason = "locked"
 		entry.loaded = true
 		self._profiles[userId] = entry
 		self._loading[userId] = nil
@@ -397,6 +398,7 @@ function DataService:load(player)
 		)
 		entry.data = TableUtil.reconcile(loadedData, ProfileTemplate.Template)
 		entry.readOnly = true
+		entry.readOnlyReason = "newer_build"
 		--[[ The lock was taken by the load transform before anything looked
 		     at the version. Hand it straight back: a read-only session never
 		     saves, so it would never release, and a lock nobody will release
@@ -465,6 +467,16 @@ end
 function DataService:isReadOnly(player)
 	local entry = self._profiles[player.UserId]
 	return entry == nil or entry.readOnly
+end
+
+--[[ "locked" (another server holds the profile), "newer_build" (the stored
+     profile was written by a build this one cannot read) or "lock_lost";
+     nil for a writable session. The HUD words its warning by this, because
+     "another server still holds your save" is the wrong thing to tell
+     someone whose save is simply newer than the server. ]]
+function DataService:readOnlyReason(player)
+	local entry = self._profiles[player.UserId]
+	return entry and entry.readOnlyReason or nil
 end
 
 function DataService:markDirty(player)
@@ -594,6 +606,7 @@ function DataService:save(player, options)
 		end
 		log:warn("save aborted for %s (%d): the profile lock is held by another session", player.Name, userId)
 		entry.readOnly = true
+		entry.readOnlyReason = "lock_lost"
 		return false, "lock_lost"
 	end
 

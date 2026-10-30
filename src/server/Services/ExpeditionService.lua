@@ -205,11 +205,17 @@ function ExpeditionService:beginExpedition(leader, options)
 	     session is read-only, for the reason given above. ]]
 	local eligible = {}
 	for _, player in ipairs(partyPlayers) do
-		if
-			not self:sessionOf(player)
-			and self.context.DataService:isLoaded(player)
-			and not self.context.DataService:isReadOnly(player)
-		then
+		local busy = self:sessionOf(player) ~= nil or not self.context.DataService:isLoaded(player)
+		if not busy and self.context.DataService:isReadOnly(player) then
+			--[[ Dropped, but TOLD. A member left behind in silence is still in the
+			     party, still counted as ready, and has no idea why the cave closed
+			     without them. ]]
+			Net.fire(player, Routes.Push.Notify, {
+				kind = "warning",
+				title = "Sat this one out",
+				body = "Your save is read-only this session, so an expedition could not be kept. Rejoin later to go down with the party.",
+			})
+		elseif not busy then
 			table.insert(eligible, player)
 		end
 	end

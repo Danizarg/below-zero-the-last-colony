@@ -402,16 +402,24 @@ function Store.start()
 		end
 	end)
 
-	--[[ One request for everything the UI needs at startup. Retried a few times
-	     because the profile may still be loading when the client is ready. ]]
+	--[[ One request for everything the UI needs at startup, retried until it
+	     arrives, within reason. The profile may still be loading when the
+	     client is ready — and when the DataStore is down, the load retries for
+	     7.5 s before falling back to memory, which outlasted the six fixed
+	     attempts this used to make. A client that gave up at 7.5 s showed an
+	     empty HUD to exactly the session that most needed the "saving
+	     unavailable" warning. ]]
 	task.spawn(function()
-		for attempt = 1, 6 do
+		local deadline = os.clock() + 60
+		local pause = 0.5
+		while os.clock() < deadline do
 			local response = Net.request(Routes.Request.GetProfile)
 			if response.ok then
 				Store.state.colony = response.colony or Store.state.colony
 				Store.state.settings = response.settings or {}
 				Store.state.cosmetics = response.cosmetics
 				Store.state.readOnly = response.readOnly == true
+				Store.state.readOnlyReason = response.readOnlyReason
 				Store.state.degraded = response.degraded == true
 				Store.state.directory = response.directory or {}
 				Store.state.version = response.version or "?"
@@ -419,9 +427,10 @@ function Store.start()
 				touch("meta")
 				return
 			end
-			task.wait(attempt * 0.5)
+			task.wait(pause)
+			pause = math.min(pause * 1.5, 3)
 		end
-		warn("[BZ/Store] profile never arrived; the UI will show empty state")
+		warn("[BZ/Store] profile never arrived in 60 s; the UI will show empty state")
 	end)
 
 	return Store

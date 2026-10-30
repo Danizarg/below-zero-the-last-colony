@@ -351,7 +351,13 @@ local function buildPlot(parent, index)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "Spawn"
 	spawn.Size = Vector3.new(12, 1, 12)
-	spawn.Position = centre + COLONY.SpawnOffset - Vector3.new(0, 3, 0)
+	--[[ Resting ON the ground, not in it. The Ground slab occupies FloorY to
+	     FloorY + 2; this pad is one stud thick, so centred at +2.5 its underside
+	     sits on the slab's top. The old position (SpawnOffset.Y - 3 = 1) put it
+	     entirely inside the slab — invisible, and a body spawned on it by the
+	     engine started half a stud into the floor until sendHome lifted it. ]]
+	spawn.Position =
+		Vector3.new(centre.X + COLONY.SpawnOffset.X, COLONY.FloorY + 2.5, centre.Z + COLONY.SpawnOffset.Z)
 	spawn.Anchored = true
 	spawn.CanCollide = true
 	spawn.Enabled = false

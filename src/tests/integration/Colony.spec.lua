@@ -225,6 +225,42 @@ return function(suite, context)
 
 	-- ── Construction ─────────────────────────────────────────────────────────
 
+	suite:test("nothing welded into a freshly spawned body is anchored", function(expect)
+		--[[ RoleService welds a shoulder lamp onto every body that spawns in the
+		     colony. PartFactory anchors everything it makes, and an anchored part
+		     is always its assembly's root — so an anchored lamp did not follow the
+		     character; the character followed the lamp, to the world origin, and
+		     stayed there. The first Studio session could not move. The simulated
+		     character has a torso so the lamp is built here too. ]]
+		local colony = newColony()
+		local character = colony.player.Character
+		expect.truthy(character, "no body was spawned into the colony")
+		local kit = character and character:FindFirstChild("RoleKit")
+		expect.truthy(kit, "the role kit was not built, so this test is looking at nothing")
+
+		local welded = 0
+		local anchored = {}
+		for _, descendant in ipairs(character:GetDescendants()) do
+			if descendant:IsA("Weld") or descendant:IsA("WeldConstraint") then
+				welded += 1
+				for _, part in ipairs({ descendant.Part0, descendant.Part1 }) do
+					if part and part.Anchored then
+						table.insert(anchored, part.Name)
+					end
+				end
+			end
+		end
+		expect.truthy(welded > 0, "nothing is welded to the body, so the lamp was never attached")
+		expect.equal(
+			#anchored,
+			0,
+			("anchored part(s) welded into the body: %s — an anchored part is the assembly root, so the body is pinned to it"):format(
+				table.concat(anchored, ", ")
+			)
+		)
+		colony.server.assertNoErrors(expect, "spawn kit")
+	end)
+
 	suite:test("placing a Shelter charges exactly its cost and nothing else", function(expect)
 		local colony = newColony()
 		local Enums = colony.Enums

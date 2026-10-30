@@ -136,6 +136,19 @@ function MonetizationService:prompt(player, productIdString)
 		return { ok = false, reason = Enums.Reject.BadRequest }
 	end
 
+	--[[ Never take Robux for a grant that cannot be kept. A read-only session
+	     is never written, and an ephemeral one — served from memory during a
+	     DataStore outage — is never written to the store. Either would pass
+	     ProcessReceipt, grant in RAM, and lose the purchase on exit. ]]
+	if self.context.DataService:isReadOnly(player) or self.context.DataService:isEphemeral(player) then
+		return {
+			ok = false,
+			reason = Enums.Reject.NotLoaded,
+			detail = "read_only",
+			message = "Your progress cannot be saved this session, so a purchase could not be kept. Rejoin later and try again.",
+		}
+	end
+
 	local purchasable, reason = ShopConfig.isPurchasable(productIdString, GameConfig.Monetization.Enabled)
 	if not purchasable then
 		--[[ The refusal names the real reason. "Coming soon" with no explanation

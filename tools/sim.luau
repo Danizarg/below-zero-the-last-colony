@@ -791,6 +791,22 @@ function sim.new(options)
 	--[[ A real in-memory DataStore, with genuine UpdateAsync read-modify-write
 	     semantics. This matters: the session-locking protocol is where several
 	     of the fixed bugs live, so it has to be exercised rather than stubbed. ]]
+	--[[ Records cross the store boundary by VALUE, as they do through a real
+	     DataStore, which serialises on both sides. Handing the stored table
+	     back by reference let a service's live profile alias the record, so a
+	     test asserting "the record was not written" could pass while reading
+	     the service's own mutations through the alias. ]]
+	local function deepCopy(value)
+		if type(value) ~= "table" then
+			return value
+		end
+		local out = {}
+		for k, v in pairs(value) do
+			out[k] = deepCopy(v)
+		end
+		return out
+	end
+
 	local dataStores = {}
 	local dataStoreService = {
 		GetDataStore = function(_, name)
@@ -808,9 +824,9 @@ function sim.new(options)
 					end
 					store.calls += 1
 					local current = store.data[key]
-					local updated = transform(current)
+					local updated = transform(current and deepCopy(current) or nil)
 					if updated ~= nil then
-						store.data[key] = updated
+						store.data[key] = deepCopy(updated)
 					end
 					return updated
 				end,
@@ -818,7 +834,7 @@ function sim.new(options)
 					if server.dataStoreBroken then
 						error("simulated DataStore outage", 0)
 					end
-					return store.data[key]
+					return deepCopy(store.data[key])
 				end,
 			}
 		end,
@@ -1124,10 +1140,24 @@ function sim.new(options)
 		local character = newInstance("Model")
 		character.Name = player.Name
 
+		local CF = require("@lune/roblox").CFrame
 		local root = newInstance("Part")
 		root.Name = "HumanoidRootPart"
+		root.CFrame = CF.new()
 		root.Parent = character
 		character.PrimaryPart = root
+
+		--[[ A torso, so that what the services weld ONTO a body is built here
+		     too. RoleService's shoulder lamp is attached to the torso; without
+		     one, _applyAppearance returned early and the part that froze every
+		     real character — created Anchored at the origin and welded to the
+		     body — was never created headlessly, through 128 green tests. The
+		     CFrame is identity: there is no physics to care, only arithmetic
+		     that must not meet nil. ]]
+		local torso = newInstance("Part")
+		torso.Name = "Torso"
+		torso.CFrame = CF.new()
+		torso.Parent = character
 
 		local humanoid = newInstance("Humanoid")
 		humanoid.Parent = character

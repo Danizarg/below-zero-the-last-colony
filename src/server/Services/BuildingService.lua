@@ -516,6 +516,10 @@ function BuildingService:repair(player, uid)
 	if not plotIndex then
 		return { ok = false, reason = permissionReason }
 	end
+	--[[ Same gate as place, upgrade and remove; repair spends resources too. ]]
+	if self.context.DataService:isReadOnly(player) then
+		return { ok = false, reason = Enums.Reject.NotLoaded, detail = "read_only" }
+	end
 
 	local placement = self:findPlacement(player, uid)
 	if not placement then

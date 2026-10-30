@@ -169,13 +169,16 @@ did not sync — check you opened the project from the repository root.
 
 ## 3. Turn on DataStores (do this before testing persistence)
 
-**Game Settings → Security → Enable Studio Access to API Services → Save.**
+**File → Experience Settings → Security → Enable Studio Access to API
+Services → Save.**
 
 That setting is stored against the place on Roblox rather than in the local
 file, so a place that has never been published has nowhere to keep it:
-**File → Publish to Roblox As…** first, and set it **private**. A private
-publish is all this step needs. Making it public is a separate decision with
-its own checks — see §7.
+**File → Publish** first. The first time, a Game details window asks for a
+name, a genre and a description, and Save is the publish. Nothing else is
+needed here, and nothing is exposed by it: a published game is not a
+*released* one. Until you release it (§8), only you, anyone you give Edit
+access, and the testers you let in (§7) can join.
 
 Without it, `DataService` detects the failure, falls back to an **in-memory**
 store, and says so once in the Output:
@@ -387,15 +390,95 @@ a layout and replay it.
 
 ---
 
-## 7. Before you make it public
+## 7. Sharing it with a tester
 
-A **private** publish is what step 3 asks for and needs nothing more — it exists
-so Studio can reach a real DataStore. Making the place **public** is a separate
-decision, and at that point one of the knobs above stops being a convenience.
+The publish from §3 is already the way to let someone else play. Not the place
+file, which gives them a Studio session with no saves; not the repository, which
+is for whoever edits the source. A tester joins the published game from the
+Roblox app on whatever they have, the real DataStore backs their colony, and the
+two of you in one server is the co-op the game is built around.
+
+Roblox has two doors into an unreleased game. Which fits depends on who the
+tester is. Both are taken from Roblox's own documentation at the time of
+writing; the Studio menus moved in 2025 and older guides name windows that no
+longer exist, so if something here does not match what you see, trust the
+linked page over this one.
+
+### A friend: invite them as an early tester
+
+**File → Invite early testers** → search → pick them → **Invite**. They get an
+invitation and can join while the game is unreleased.
+
+- Up to 10, friends or trusted friends only, and of a similar age: an adult
+  account can add friends 16 and over, and a *trusted* friend of any age.
+- Roblox asks you to complete an **age check** (facial estimation or ID) the
+  first time, if you have not already. There is no way round this.
+- They see a preview watermark in game; the reporting tools stay on.
+- The list is managed from the **Manage Collaborators** button at the top right
+  of Studio.
+
+Reference: [Invite early testers](https://create.roblox.com/docs/production/publishing/publish-games-and-places#invite-early-testers).
+
+### Anyone else: give them Play access
+
+For a user-owned game Roblox grants **Play** access to any user; only **Edit** is
+restricted to friends.
+
+1. With the place open, click **Collaborate** at the right of Studio's toolbar.
+2. Search their username, select them, set the permission to **Play**, click
+   **Save**.
+3. If they still cannot join, the audience switch is on the Creator Dashboard:
+   the game → **Publish settings → Manage Audience → Manage access →
+   Playtest** → enable **Playtesters**.
+
+Reference: [Manage collaborators](https://create.roblox.com/docs/projects/collaboration#manage-collaborators),
+[Target audience](https://create.roblox.com/docs/production/publishing/publish-games-and-places#target-audience).
+
+Either way the game stays unreleased. Releasing it, §8, is what makes it
+visible to strangers, and nothing about a tester needs that.
+
+### What they get, and what they do not
+
+| What | How it stands |
+|---|---|
+| Saves | Work without any Studio setting. The switch in §3 is for Studio sessions only; a published server reaches the DataStore on its own. |
+| `GameConfig.Debug` | Can stay `true` for a tester you trust. What it gates — a client-supplied expedition seed, a `_G` console handle, `info()`-level logging, the layout print — matters against strangers, and it flips to `false` before release (§8). |
+| The server log | **Not theirs.** The Developer Console (F9) shows server output only to the owner, or to group members with Edit permission; a Play collaborator or early tester sees the client side only. When they hit something, *you* join the same server, press F9, choose **Server**, and read the `[BZ/…]` lines: `is down (…)` names the cause of a down, `FAULT` the first thing that broke. |
+| One store, shared | Studio with API access (§3) and the published game use the **same** DataStore, keyed by user id. If you are in the live game and press Play in Studio at the same time, the Studio session finds your profile's session lock held and comes up read-only ("locked"). That is the lock working, not a bug. |
+
+### Getting them an update
+
+Every change goes through the same four steps:
+
+1. `rojo build -o BelowZero.rbxl` (or the `.rbxlx` from §2; either opens).
+2. **File → Open** the file again. Studio does not reload an open place from
+   disk, and Play on the old document tests the old build.
+3. **File → Publish**.
+4. They leave and rejoin. A server keeps the version it started with; a new
+   server gets the new one.
+
+### What to ask them for
+
+A report is usable when it has what they pressed, a screenshot with the HUD in
+it, and the clock time, so the server log can be matched to it. Read the
+**Unresolved** table in [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) before
+they start, so you know which reports are news.
+
+---
+
+## 8. Before you make it public
+
+The publish in §3 and the testers in §7 expose nothing. Making the game
+**public** — Roblox calls it *releasing*: **File → Publish → Continue**, then
+the content-maturity question — is a separate decision, with Roblox's own
+conditions attached (an account at least two days old and an age check for a
+16+ release; more for all ages, listed on
+[its publishing page](https://create.roblox.com/docs/production/publishing/publish-games-and-places#release-requirements)),
+and at that point one of the knobs above stops being a convenience.
 
 | Check | State in this repository | Why it matters |
 |---|---|---|
-| `GameConfig.Debug` | `true` | **Change this.** While it is true the client may supply an expedition seed (`ExpeditionService.lua:955`), so a player can scout a cave and replay it for guaranteed loot. The test suite needs no such care — `RunTests` is gated on `RunService:IsStudio()` and cannot run on a live server — but the seed path is gated on `Debug` alone. |
+| `GameConfig.Debug` | `true` | **Change this.** While it is true the client may supply an expedition seed (`ExpeditionService.lua:975`), so a player can scout a cave and replay it for guaranteed loot. The test suite needs no such care — `RunTests` is gated on `RunService:IsStudio()` and cannot run on a live server — but the seed path is gated on `Debug` alone. |
 | `GameConfig.Monetization.Enabled` | `false` | Correct as it stands; leave it. Nothing in the codebase simulates a successful purchase, and with this false the shop renders products as unavailable and `ProcessReceipt` is never relied on for progression. It stays off until the purchase flow has been verified against a real Developer Product. |
 | `GameConfig.MvpContentOnly` | `true` | Correct as it stands; leave it. Turning it off exposes three roles and five buildings that are architected but **not implemented**, so players would meet `NotImplemented` refusals. |
 | `AudioConfig` asset IDs | all 38 empty | Deliberate — no asset ID in this repository was invented. The game is silent until real ones are pasted in; `AudioController` creates each `Sound`, reports the empty ID once in the Output, and never errors. |
@@ -405,7 +488,7 @@ before a public release, not a formality.
 
 ---
 
-## 8. The checks you can run without Studio
+## 9. The checks you can run without Studio
 
 Six checks, all run from the repository root, all currently green. Run them
 before a commit; the Lune ones exit non-zero on failure, so they work in CI.
@@ -545,7 +628,7 @@ here rather than silently doing nothing in Studio. (`build/` is gitignored.)
 
 ---
 
-## 9. If something goes wrong
+## 10. If something goes wrong
 
 | Symptom | Likely cause |
 |---|---|

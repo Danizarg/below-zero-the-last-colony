@@ -48,21 +48,39 @@ rokit install
 That reads `rokit.toml` and installs Rojo 7.4.4, StyLua 0.20.0, Selene 0.27.1
 and Lune 0.8.9. Those exact pins are known good — all four install and run.
 
-> **Rokit will tell you to restart your computer. You do not need to.** Its
-> shims go in `~/.rokit/bin` (`%USERPROFILE%\.rokit\bin` on Windows) and it adds
-> that to your user `PATH`. An already-open terminal does not pick up a `PATH`
-> change, which is the whole problem — so just **open a new terminal**.
+> **Rokit will tell you to restart your computer. Restarting may not help, and
+> the reason matters.** Its shims go in `~/.rokit/bin`
+> (`%USERPROFILE%\.rokit\bin` on Windows), but it does not always put that
+> directory on your `PATH`. Measured on Windows 11 with Rokit 1.2.0 installed
+> through WinGet: the only Rokit-related entry in the persisted user `PATH` was
+> WinGet's own package directory, which holds `rokit.exe` and not one of the
+> shims. `rojo` therefore never resolves — not in a new terminal, not after a
+> reboot. An earlier version of this document asserted that Rokit adds the
+> directory for you. It does not, at least not by that install route.
 >
-> If you want it working in the terminal you already have:
+> Check, rather than trust. This reads the *saved* user `PATH`, not whatever
+> your current shell happens to be holding:
 >
-> ```bash
-> set PATH=%PATH%;%USERPROFILE%\.rokit\bin
+> ```powershell
+> ([Environment]::GetEnvironmentVariable('PATH','User') -split ';') | Where-Object { $_ -like '*rokit*' }
 > ```
 >
-> Or skip `PATH` entirely and call the shim directly:
+> If `.rokit\bin` is absent, add it. Use this rather than `setx`, which
+> truncates a `PATH` longer than 1024 characters, and rather than
+> `[Environment]::SetEnvironmentVariable`, which rewrites the value as `REG_SZ`
+> and so permanently freezes any `%VAR%` entries already in it:
+>
+> ```powershell
+> $k='HKCU:\Environment'; $p=(Get-Item $k).GetValue('PATH','',[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames); if ($p -notlike '*rokit\bin*') { New-ItemProperty -Path $k -Name PATH -PropertyType ExpandString -Force -Value ($p.TrimEnd(';') + ';%USERPROFILE%\.rokit\bin') | Out-Null; 'added' } else { 'already present' }
+> ```
+>
+> Then open a new terminal. Already-running ones keep the environment they
+> started with, so they will still not see it.
+>
+> Or skip `PATH` entirely and call the shim directly, which always works:
 >
 > ```bash
-> "%USERPROFILE%\.rokit\bin\rojo.exe" plugin install
+> "$HOME/.rokit/bin/rojo.exe" plugin install
 > ```
 >
 > One more wrinkle: Rokit's shims resolve a tool from the nearest project

@@ -92,6 +92,40 @@ return function(suite, context)
 
 	-- ── The run starts at all ────────────────────────────────────────────────
 
+	suite:test("a read-only session cannot start an expedition", function(expect)
+		--[[ An expedition settles into the profile: XP, levels, role mastery, the
+		     haul, banked keys. A read-only session is never written, so letting it
+		     run one would announce all of that and lose it at the door. The gate
+		     was `isLoaded`, and a read-only session IS loaded. ]]
+		local server = newServer()
+		local Routes = server.require(server.shared.Routes)
+		local Enums = server.require(server.shared.Enums)
+		local GameConfig = server.require(server.shared.Config.GameConfig)
+		local Migrations = server.require(server.shared.Data.Migrations)
+
+		local player = server.addPlayer("Alice")
+		server.disconnect(player)
+		local record = server.dataStores[GameConfig.DataStoreName].data["player_" .. player.UserId]
+		expect.truthy(record, "nothing was written, so there is no record to make newer")
+		record.version = Migrations.Target + 1
+		player = server.rejoin(player)
+		expect.truthy(
+			server.services.DataService:isReadOnly(player),
+			"a profile from a newer build was loaded for writing"
+		)
+
+		local result =
+			server.invoke(player, Routes.Request.StartExpedition, { difficultyId = "easy", seed = SEED })
+		expect.falsy(result.ok, "a session that will never be saved was sent on an expedition")
+		expect.equal(result.reason, Enums.Reject.NotLoaded, "refused for the wrong reason")
+		expect.equal(result.detail, "read_only", "the refusal does not say why")
+		expect.falsy(
+			server.services.ExpeditionService:sessionOf(player),
+			"an expedition session exists for a refused start"
+		)
+		server.assertNoErrors(expect, "read-only expedition refusal")
+	end)
+
 	suite:test("an expedition starts and puts the player underground", function(expect)
 		local run = startRun("easy")
 

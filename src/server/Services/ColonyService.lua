@@ -474,7 +474,7 @@ function ColonyService:start()
 			readOnly = self.context.DataService:isReadOnly(player),
 			--[[ Surfaced because a player whose session will not be saved
 			     deserves to know before they spend an hour on it. ]]
-			degraded = self.context.DataService:isDegraded(),
+			degraded = self.context.DataService:isEphemeral(player),
 			directory = self:directory(player),
 			version = GameConfig.Version,
 		}

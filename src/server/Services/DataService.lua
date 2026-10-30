@@ -170,6 +170,47 @@ function DataService:isDegraded()
 	return self._degraded == true
 end
 
+--[[ Whether this player's progress can reach the DataStore at all: false
+     while the server is degraded, and false for the life of a session whose
+     profile was served from memory during an outage (`mockOrigin`, see
+     save). The client shows "Saving is currently unavailable" on this, which
+     is the one warning a player gets before spending an hour on a colony
+     that will not be kept. ]]
+function DataService:isEphemeral(player)
+	local entry = self._profiles[player.UserId]
+	return self._degraded == true or (entry ~= nil and entry.mockOrigin == true)
+end
+
+--[[ Clear ONLY the lock fields on a record this server just locked, leaving
+     every other byte as it was. Used when a load takes the lock and then
+     decides it cannot use the data — a profile from a newer build. Best
+     effort: if the store will not take the write, the lock expires on its
+     own after LOCK_TIMEOUT, which is the situation this exists to shorten. ]]
+function DataService:_releaseLockOnly(key)
+	local jobId = self._jobId
+	local transform = function(current)
+		if current and current.meta and current.meta.lockJobId == jobId then
+			current.meta.lockJobId = ""
+			current.meta.lockTimestamp = 0
+			return current
+		end
+		return nil
+	end
+
+	local store = self:_getStore()
+	if store then
+		local ok = self:_attempt("lock release", SAVE_ATTEMPTS, function()
+			return store:UpdateAsync(key, transform)
+		end)
+		if not ok then
+			log:warn("could not release the lock on %s; it will expire on its own", key)
+		end
+		return ok
+	end
+	self:_mockUpdate(key, transform)
+	return true
+end
+
 --[[ Retry wrapper with backoff. Returns ok, result. ]]
 function DataService:_attempt(what, attempts, fn)
 	local delay = 0.5
@@ -209,9 +250,17 @@ end
 --[[
 	Load (or create) a profile and take the session lock.
 
-	@return entry  { data, readOnly, loaded } — never nil; a total failure still
-	               yields a playable in-memory profile marked readOnly, so a
-	               DataStore outage does not lock players out of the game.
+	@return entry  { data, readOnly, loaded, mockOrigin } — never nil. The ways
+	               this ends, in order of how much the player keeps:
+
+	                 real data, writable     the normal case
+	                 real data, read-only    the stored profile is from a newer
+	                                         build; nothing is ever written
+	                 template, read-only     another server holds the lock
+	                 template, mockOrigin    the DataStore was down; the session
+	                                         plays against memory and is never
+	                                         written to the store, so the real
+	                                         record survives the outage
 ]]
 function DataService:load(player)
 	local userId = player.UserId
@@ -241,6 +290,7 @@ function DataService:load(player)
 		dirty = false,
 		lastSave = now,
 		lockHeld = false,
+		mockOrigin = false,
 	}
 
 	local lockedOut = false
@@ -288,6 +338,13 @@ function DataService:load(player)
 
 		if not store then
 			ok, result = true, self:_mockUpdate(key, transform)
+			--[[ Remember where this came from. Memory is the store of record
+			     only when UseDataStore is off; otherwise the DataStore was down,
+			     and whatever memory returns — for a player it has never seen, a
+			     fresh template — is NOT the player's save and must never be
+			     written over it. `save` reads this and pins the session to
+			     memory for its whole life. ]]
+			entry.mockOrigin = not self._intentionalMock
 		end
 
 		if ok and result ~= nil then
@@ -340,6 +397,14 @@ function DataService:load(player)
 		)
 		entry.data = TableUtil.reconcile(loadedData, ProfileTemplate.Template)
 		entry.readOnly = true
+		--[[ The lock was taken by the load transform before anything looked
+		     at the version. Hand it straight back: a read-only session never
+		     saves, so it would never release, and a lock nobody will release
+		     shows the player a starter colony on every other server —
+		     "another server still holds your save" — until LOCK_TIMEOUT. ]]
+		if entry.lockHeld and self:_releaseLockOnly(key) then
+			entry.lockHeld = false
+		end
 	else
 		entry.data = migration.profile
 		if #migration.applied > 0 then
@@ -487,6 +552,20 @@ function DataService:save(player, options)
 	local store = self:_getStore()
 	local ok, result
 
+	--[[ A profile that was never READ from the DataStore is never WRITTEN to
+	     it. `mockOrigin` marks a session whose load fell back to memory while
+	     the store was down: what it holds is a fresh template, not the
+	     player's save, and the moment the store recovered the first autosave
+	     wrote that template over the real record — a new colony replacing a
+	     veteran's, reported as a successful save. The session stays playable
+	     against memory, which is the degraded design and what SETUP.md
+	     promises Studio without API access, but it is pinned there for its
+	     whole life. The real record is untouched and is what the player gets
+	     back on their next join. ]]
+	if entry.mockOrigin then
+		store = nil
+	end
+
 	if store then
 		ok, result = self:_attempt("profile save", SAVE_ATTEMPTS, function()
 			return store:UpdateAsync(key, transform)
@@ -525,7 +604,7 @@ function DataService:save(player, options)
 
 	     `dirty` is deliberately NOT cleared: the profile still has unsaved
 	     changes, so the next autosave should try again once the store recovers. ]]
-	if self._degraded then
+	if self._degraded or entry.mockOrigin then
 		data.diagnostics.saveFailures = (data.diagnostics.saveFailures or 0) + 1
 
 		if release then
@@ -534,9 +613,11 @@ function DataService:save(player, options)
 			entry.lockHeld = false
 			self._profiles[userId] = nil
 			log:fault(
-				"released %s (%d) WITHOUT PERSISTING: the DataStore is unavailable, this session is lost",
+				"released %s (%d) WITHOUT PERSISTING: %s, this session is lost",
 				player.Name,
-				userId
+				userId,
+				entry.mockOrigin and "its profile never came from the DataStore"
+					or "the DataStore is unavailable"
 			)
 		end
 

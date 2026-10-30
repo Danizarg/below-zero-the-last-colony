@@ -805,7 +805,18 @@ function NPCService:start()
 		if self._productionAccumulator >= NPC.ProductionTickSeconds then
 			self._productionAccumulator = 0
 			for _, player in ipairs(Players:GetPlayers()) do
-				if self.context.DataService:isLoaded(player) then
+				--[[ Loaded AND writable. `isLoaded` does not consider readOnly, so a
+				     read-only session — a profile whose migration was refused, still
+				     holding its real data — ticked here for the whole session: storage
+				     spent, output deposited, food, condition, research and skill all
+				     advanced and pushed to the client, and none of it ever written.
+				     The online twin of the guard in _settleOffline. The player is
+				     already told the session is read-only when it loads, and this
+				     fires every ten seconds, so there is deliberately no log here. ]]
+				if
+					self.context.DataService:isLoaded(player)
+					and not self.context.DataService:isReadOnly(player)
+				then
 					local ok, err = pcall(function()
 						self:simulate(player, 1, 1)
 						self.context.ColonyService:pushColony(player)

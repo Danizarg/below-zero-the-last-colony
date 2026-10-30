@@ -288,6 +288,100 @@ return function(suite, context)
 		server.assertNoErrors(expect, "mid-load disconnect")
 	end)
 
+	suite:test("a load that fell back to memory never writes that memory over the real save", function(expect)
+		local colony = startColony("Alice", { jobId = "job-a" })
+		local server = colony.server
+
+		--[[ A marker the template cannot have, written for real by the release. ]]
+		colony.profile().colony.food = 777
+		colony.Data:markDirty(colony.player)
+		server.disconnect(colony.player)
+		expect.equal(colony.record().colony.food, 777, "the marker never reached the store")
+
+		--[[ The store handle is cached from that first session, so this outage
+		     lands on UpdateAsync: five attempts, backing off through virtual time,
+		     then the load falls back to memory — which has never seen Alice and so
+		     hands her a fresh template. The session must stay PLAYABLE: this is the
+		     path every Studio session without API services takes, and SETUP.md
+		     promises it works. What it must never do is let that template become
+		     her save. ]]
+		server.dataStoreBroken = true
+		colony.player = server.rejoin(colony.player)
+		expect.falsy(colony.Data:isLoaded(colony.player), "the load did not suspend in its retry backoff")
+		server.advance(12, 1)
+		expect.truthy(colony.Data:isLoaded(colony.player), "the load never completed after the outage")
+		expect.truthy(colony.Data:isDegraded(), "five failed attempts did not degrade the server")
+		expect.falsy(
+			colony.Data:isReadOnly(colony.player),
+			"a degraded load was made read-only; Studio without API access would freeze"
+		)
+		expect.truthy(
+			colony.profile().colony.food ~= 777,
+			"memory returned the real profile, so there is nothing here to protect against"
+		)
+		expect.truthy(
+			colony.Data:isEphemeral(colony.player),
+			"the player is not being told this session cannot be kept"
+		)
+
+		--[[ The store recovers. The degraded window (60s) and an autosave (45s)
+		     both pass, so the first autosave after recovery has run. ]]
+		server.dataStoreBroken = false
+		server.advance(120, 1)
+		expect.equal(
+			colony.record().colony.food,
+			777,
+			"the first autosave after the outage wrote an in-memory template over the player's real save"
+		)
+		expect.truthy(
+			colony.Data:isEphemeral(colony.player),
+			"the warning was dropped although this session still cannot be kept"
+		)
+
+		--[[ Leaving after the recovery is the other write that could land. ]]
+		server.disconnect(colony.player)
+		expect.equal(colony.record().colony.food, 777, "the release wrote the template over the real save")
+		expect.equal(
+			colony.record().meta.lockJobId,
+			"",
+			"the real record was left locked by a session that never held it"
+		)
+	end)
+
+	suite:test("a session refused by migration hands back the lock it took on the way in", function(expect)
+		local colony = startColony("Alice", { jobId = "job-a" })
+		local server = colony.server
+		server.disconnect(colony.player)
+		local record = colony.record()
+		expect.truthy(record, "nothing was written, so there is no record to make newer")
+
+		--[[ A profile from a newer build. The load transform takes the lock before
+		     anything looks at the version, Migrations then refuses, and the session
+		     is read-only — which means it never saves, which means it never
+		     releases. Every other server then shows the player a starter colony
+		     "because another server still holds your save" until LOCK_TIMEOUT. ]]
+		local Migrations = server.require(server.shared.Data.Migrations)
+		record.version = Migrations.Target + 1
+		colony.player = server.rejoin(colony.player)
+		expect.truthy(
+			colony.Data:isReadOnly(colony.player),
+			"a profile from a newer build was loaded for writing"
+		)
+
+		local after = colony.record()
+		expect.equal(after.version, Migrations.Target + 1, "the newer profile was downgraded")
+		expect.equal(after.colony.food, record.colony.food, "the newer profile's data was altered")
+		expect.equal(
+			after.meta.lockJobId,
+			"",
+			"a read-only session is holding the profile lock; the player's next server will lock them out for two minutes"
+		)
+
+		server.disconnect(colony.player)
+		expect.equal(colony.record().meta.lockJobId, "", "leaving re-took the lock")
+		server.assertNoErrors(expect, "refused migration lock")
+	end)
+
 	-- ── Degradation honesty ──────────────────────────────────────────────────
 
 	suite:test("an outage makes a save report failure instead of lying about it", function(expect)

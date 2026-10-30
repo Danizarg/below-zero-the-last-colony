@@ -792,6 +792,60 @@ return function(suite, context)
 		colony.server.assertNoErrors(expect, "read-only settle")
 	end)
 
+	suite:test("a read-only session is not simulated while the player is there either", function(expect)
+		local colony = newColony()
+		colony.staff(expect)
+		colony.leave()
+
+		--[[ The same tampered record as the test above — a profile from a newer
+		     build, refused by Migrations, loaded read-only with its real data.
+		     That test covers the absence being paid at LOAD. This one covers the
+		     rest of the session: the online production tick fires every ten
+		     seconds and gated on `isLoaded` alone, which does not consider
+		     readOnly, so a read-only colony spent storage, banked output and
+		     advanced food, condition, research and skill for as long as the
+		     player stayed, pushed every bit of it to the client, and wrote none
+		     of it. Hours of visible progress, gone at the door. ]]
+		local record = colony.record()
+		expect.truthy(record, "nothing was written, so there is no record to make unreadable")
+		record.version = colony.Migrations.Target + 1
+
+		colony.returnAfter(0)
+		expect.truthy(
+			colony.services.DataService:isReadOnly(colony.player),
+			"a profile from a newer build was loaded for writing, which is a far worse bug than this test is for"
+		)
+
+		--[[ Snapshotted AFTER the rejoin, so the offline settle — correctly
+		     skipped, and covered above — is not what gets measured. Condition
+		     is the probe: with no Guard on the roster it decays on every
+		     simulated tick and nothing else touches it, so any movement at all
+		     means a tick ran. Food is the second witness. ]]
+		local conditionBefore = colony.profile().colony.condition
+		local foodBefore = colony.profile().colony.food
+		colony.server.clearPushes()
+
+		local ticks = 12
+		colony.server.advance(ticks * colony.NPC.ProductionTickSeconds + 1, 1)
+
+		expect.equal(
+			colony.profile().colony.condition,
+			conditionBefore,
+			("%d production ticks ran against a session that will never be written"):format(ticks)
+		)
+		expect.equal(
+			colony.profile().colony.food,
+			foodBefore,
+			"the larder moved in a session that cannot save it"
+		)
+		expect.equal(
+			#colony.server.pushes(colony.player, colony.Routes.Push.ColonySync),
+			0,
+			"the client was shown colony progress that is thrown away the moment they leave"
+		)
+		colony.server.assertNoErrors(expect, "read-only online tick")
+	end)
+
 	suite:test("a colony that has never produced starts its clock instead of paying out", function(expect)
 		local colony = newColony()
 		local Enums = colony.Enums

@@ -175,6 +175,13 @@ function ExpeditionService:beginExpedition(leader, options)
 	if not self.context.DataService:isLoaded(leader) then
 		return { ok = false, reason = Enums.Reject.NotLoaded }
 	end
+	--[[ Loaded but read-only is refused too. An expedition settles into the
+	     profile — XP, levels, role mastery, the haul, banked keys — and a
+	     read-only session is never written, so the run would be announced in
+	     full and lost at the door. The same refusal BuildingService gives. ]]
+	if self.context.DataService:isReadOnly(leader) then
+		return { ok = false, reason = Enums.Reject.NotLoaded, detail = "read_only" }
+	end
 
 	local party = self.context.PartyService:ensureParty(leader)
 	if party.leaderUserId ~= leader.UserId then
@@ -194,10 +201,15 @@ function ExpeditionService:beginExpedition(leader, options)
 
 	local partyPlayers = self.context.PartyService:membersOf(party)
 	--[[ Anyone already in an expedition is dropped from this one rather than
-	     silently pulled out of their current run. ]]
+	     silently pulled out of their current run, and so is anyone whose
+	     session is read-only, for the reason given above. ]]
 	local eligible = {}
 	for _, player in ipairs(partyPlayers) do
-		if not self:sessionOf(player) and self.context.DataService:isLoaded(player) then
+		if
+			not self:sessionOf(player)
+			and self.context.DataService:isLoaded(player)
+			and not self.context.DataService:isReadOnly(player)
+		then
 			table.insert(eligible, player)
 		end
 	end

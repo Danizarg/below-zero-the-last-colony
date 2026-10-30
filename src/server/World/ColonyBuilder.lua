@@ -230,7 +230,6 @@ local function buildCampfire(parent, origin, rng)
 		range = 84,
 		brightness = 2.8,
 		shadows = true,
-		shadows = false,
 		parent = fire,
 	})
 	flame:SetAttribute("IsCampfire", true)

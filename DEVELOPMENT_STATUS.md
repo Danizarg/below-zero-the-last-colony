@@ -434,7 +434,7 @@ the whole shop feel fake.
 
 ### 5. The gaps the simulation still cannot reach
 
-Done, and it found thirteen bugs — see **What the simulation found** above. What it
+Done, and it found fourteen bugs — see **What the simulation found** above. What it
 deliberately leaves uncovered, each for a stated reason, is the honest next
 increment:
 

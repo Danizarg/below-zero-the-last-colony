@@ -22,10 +22,10 @@ The toolchain is installed, so these all genuinely ran:
 | Static analysis | `selene src` | **0 errors, 0 warnings** |
 | Formatting | `stylua --check src tools` | **clean** (44 files were reformatted to get there) |
 | Unit suite, headless | `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
-| Integration suite, headless | `lune run tools/run-integration` | **130 passed, 0 failed** in 10s — a fresh server booted per test, playing real expeditions. Repeated runs, identical |
+| Integration suite, headless | `lune run tools/run-integration` | **131 passed, 0 failed** in 10s — a fresh server booted per test, playing real expeditions. Repeated runs, identical |
 | Every module loads | `lune run tools/load-check` | **67 of 67 ModuleScripts load** |
-| Every constant reference resolves | `lune run tools/ref-check` | **4,717 references, 0 dangling** — no mistyped enum, route or theme token anywhere |
-| Every cross-service call is real | `lune run tools/call-check` | **327 calls, 0 broken** — no typo'd `self.context.X:method()`, none over-applied |
+| Every constant reference resolves | `lune run tools/ref-check` | **4721 references, 0 dangling** — no mistyped enum, route or theme token anywhere |
+| Every cross-service call is real | `lune run tools/call-check` | **331 calls, 0 broken** — no typo'd `self.context.X:method()`, none over-applied |
 | Structural check | `node` heuristic over block/bracket balance | **0 problems** |
 
 **What that does and does not mean.** The pure logic is genuinely tested: the
@@ -92,7 +92,7 @@ wrong, which is what the adversarial pass is for.
 DataModel: a hand-written Instance tree with working signals, a virtual clock
 driving `os.clock`, `os.time` and all of `task`, a second clock that moves
 `os.time()` alone so hours can pass with the server idle, and a real in-memory
-DataStore with genuine `UpdateAsync` read-modify-write semantics. 130 tests
+DataStore with genuine `UpdateAsync` read-modify-write semantics. 131 tests
 across 9 spec files then play the game through it.
 
 It found **fourteen bugs**. Eight in its first week, four of those in code that
@@ -196,6 +196,14 @@ established, in order of confidence:
   lighting, roughly double ambient, fog from 140, every plot light reaching
   the next and the campfire casting shadows (`ec95feb`, `93b54e5`). Every
   number was chosen without seeing it; the player's screen is the review.
+- **Second run — found, fixed, tested.** The first expedition was downed on
+  arrival at HP 6/85 with nothing in the cave having touched the player.
+  Fall damage is charged from the highest Y seen while airborne to the Y on
+  landing, and nothing cleared that record when the server moved the body;
+  the cave is a thousand studs below the colony, so a hop at the cave mouth
+  plus the teleport read as a fall from one to the other. Every teleport now
+  forgets the tracked fall, and `Expedition.spec` stages the hop against the
+  real cave geometry (`f16580b`). The cave itself rendered well.
 - **Open, by design.** The colony starts at `3/2 colonists`:
   `StartingColonists` is 3 and TownHall level 1 houses 2, so the first hint
   is to build a Shelter. It reads as broken. Whether the fix is two starting
@@ -333,7 +341,7 @@ is the one thing this document cannot claim.
 | PlotGrid spec | ✅ | 14 tests: round-trips, snapping, bounds, overlap |
 | Module load check | ✅ | `lune run tools/load-check` requires all 67 ModuleScripts. Selene proves code parses; this proves it loads, which is the failure that takes a server down at startup |
 | Simulated server | ✅ | `tools/sim.luau` boots all 16 services against a modelled DataModel: working signals, a virtual clock over `os.clock`/`os.time`/`task`, a separate wall clock that moves `os.time()` alone so hours can pass with the server idle, `rejoin` for bringing the same account back, and an in-memory DataStore with real `UpdateAsync` semantics. Lune's own `Instance` could not be used — `@lune/roblox` manipulates place files, so it has no signals and cannot derive `Position` from `CFrame` |
-| Expedition spec | ✅ | 17 tests: the key banking regression end to end, re-settle hammering, harvest and depletion, range, cross-session, extraction gating, abandon recovery, per-player loot, world-slot isolation |
+| Expedition spec | ✅ | 18 tests: the key banking regression end to end, re-settle hammering, harvest and depletion, range, cross-session, extraction gating, abandon recovery, per-player loot, world-slot isolation |
 | Monsters spec | ✅ | 16 tests: the Crawler is killable and the Stalker is not, damage-scaled interest loss, no spawns in safe rooms, difficulty scaling, every refusal path, the 1-HP floor, downed immunity |
 | Clock spec | ✅ | 14 tests: prep → day → dusk → night on the configured durations, no phase ending early, one announcement per boundary, the duration contract, the shift schedule and its two warnings, layout validity after every shift, timeout settlement and teardown |
 | Death spec | ✅ | 13 tests: the clamp that makes instant death impossible, the downed window per difficulty, the R2 death loop, the R5 corpse reuse, the solo rescue window, revive channelling and interruption, death settlement |
@@ -342,7 +350,7 @@ is the one thing this document cannot claim.
 | Colony spec | ✅ | 17 tests: placement, upgrade, repair, demolition and their exact costs and refunds, grid bounds and overlap, visitor isolation, worker assignment and production, storage atomicity on every refusal |
 | Offline spec | ✅ | 15 tests: an absence is paid once and only once, capped at 8 hours with the remainder discarded rather than banked, reduced against the same time played, settled before the returning player's first snapshot, reported as what storage took rather than what was made, never granted into a session that cannot be written, and never below the condition floor or short a colonist |
 | Production spec | ✅ | 8 tests: a job that cannot pay its inputs does not work and spends nothing — with the `pairs` precondition asserted so a change in iteration order fails loudly — a stocked larder as the control, a spend-only tick still pushing storage and withdrawing a recipe the colonists ate out of reach, the buildings-only food rate pinned against the real one, condition decay to the unit and a Guard holding it, one job's `skillGain` per worked tick and none for an idler |
-| Integration test run | ✅ | `lune run tools/run-integration` runs all 130 in 10s against a fresh server per test; exits non-zero, so it can gate a commit or CI. 10 consecutive runs gave identical results |
+| Integration test run | ✅ | `lune run tools/run-integration` runs all 131 in 10s against a fresh server per test; exits non-zero, so it can gate a commit or CI. 10 consecutive runs gave identical results |
 | Headless test run | ✅ | `tools/harness.luau` builds a fake instance tree over the real files and supplies the datatypes Lune lacks. `lune run tools/run-tests` runs all 129 in 0.7s; exits non-zero, so it can gate a commit or CI |
 
 ---

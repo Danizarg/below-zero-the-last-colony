@@ -13,16 +13,16 @@ can get back before the tunnels rearrange themselves around you.
 > selene src                   0 errors, 0 warnings, 0 parse errors
 > stylua --check src tools     clean
 > lune run tools/run-tests     129 passed, 0 failed
-> lune run tools/run-integration  130 passed, 0 failed
+> lune run tools/run-integration  131 passed, 0 failed
 > lune run tools/load-check    67 of 67 modules load
-> lune run tools/ref-check     4,717 constant references, 0 dangling
-> lune run tools/call-check    327 cross-service calls, 0 broken
+> lune run tools/ref-check     4721 constant references, 0 dangling
+> lune run tools/call-check    331 cross-service calls, 0 broken
 > ```
 >
 > Two layers are genuinely verified. The pure logic: the cave generator and the
 > night maze shift are swept across 120 seeds × 3 difficulties. And the server
 > itself: `tools/sim.luau` boots all sixteen services against a modelled
-> DataModel with a virtual clock and a real in-memory DataStore, and 130 tests
+> DataModel with a virtual clock and a real in-memory DataStore, and 131 tests
 > play actual expeditions through them — join, build, harvest, take a key, die,
 > get rescued, extract, settle, disconnect, come back eight hours later. That
 > found fourteen bugs the unit tests could not reach, listed in
@@ -82,7 +82,7 @@ arranged around.
 | **UI** | One ScreenGui, layered, themed from a single token file. Main menu, colony HUD, expedition HUD, seven panels, toasts, alerts and a full-screen shift warning. Keyboard, mouse, gamepad and touch. |
 | **Persistence** | Session-locked profiles, retries with backoff, versioned migration, idempotent purchase receipts, and a read-only fallback that refuses to overwrite a profile another server owns. |
 | **Monetization** | Cosmetics only, bar one capped rescue. No gambling, no pay-to-win. Switched hard off, every product id zero, and a test that fails if that changes. |
-| **Tests** | Two suites. 129 unit tests over the pure logic (`run-tests`, 0.7s, also runs in Studio on Play), and 130 integration tests that drive real expeditions through all sixteen services on a simulated DataModel (`run-integration`, 10s). The cave generator and shift are swept across 120 seeds × 3 difficulties. |
+| **Tests** | Two suites. 129 unit tests over the pure logic (`run-tests`, 0.7s, also runs in Studio on Play), and 131 integration tests that drive real expeditions through all sixteen services on a simulated DataModel (`run-integration`, 10s). The cave generator and shift are swept across 120 seeds × 3 difficulties. |
 
 ---
 
@@ -118,7 +118,7 @@ tools/                 Lune harnesses — no Studio required
   sim.luau             a simulated server: modelled Instances, virtual
                        clock, in-memory DataStore, all 16 services booted
   run-tests.luau       the 129 unit specs, headless
-  run-integration.luau the 130 integration specs, headless
+  run-integration.luau the 131 integration specs, headless
   load-check.luau      requires all 67 modules to prove they load
   ref-check.luau       every Enums./Routes./Theme. reference resolves
   call-check.luau      every self.context.X:method() names a real method

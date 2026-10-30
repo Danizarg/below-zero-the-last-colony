@@ -7,11 +7,11 @@ look at.
 
 | Check | Result |
 |---|---|
-| `rojo build -o build/BelowZero.rbxlx` | pass, 1,180 KB |
-| `selene src` | 0 errors, 0 warnings, **0 parse errors** across 83 files |
+| `rojo build -o build/BelowZero.rbxlx` | pass, 1,213 KB |
+| `selene src` | 0 errors, 0 warnings, **0 parse errors** across 84 files |
 | `stylua --check src tools` | clean |
 | `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
-| `lune run tools/run-integration` | **102 passed, 0 failed** in 8s |
+| `lune run tools/run-integration` | **116 passed, 0 failed** in 10s |
 | `lune run tools/load-check` | **67 of 67 modules load** |
 
 **What has not been verified**: anything the Roblox engine owns. UI actually
@@ -382,20 +382,21 @@ specs Studio runs.
 
 ### `lune run tools/run-integration`
 
-All 102 integration specs: a fresh server booted per test, then real gameplay
+All 116 integration specs: a fresh server booted per test, then real gameplay
 driven through it.
 
 ```
 [integration] booting a simulated server per test
-[integration] loaded 7 spec file(s)
+[integration] loaded 8 spec file(s)
 [BZ/Test] PASS  Clock                  14 passed, 0 failed, 0 skipped
 [BZ/Test] PASS  Colony                 16 passed, 0 failed, 0 skipped
 [BZ/Test] PASS  Death                  13 passed, 0 failed, 0 skipped
 [BZ/Test] PASS  Disconnect             12 passed, 0 failed, 0 skipped
 [BZ/Test] PASS  Expedition             16 passed, 0 failed, 0 skipped
 [BZ/Test] PASS  Monsters               16 passed, 0 failed, 0 skipped
+[BZ/Test] PASS  Offline                14 passed, 0 failed, 0 skipped
 [BZ/Test] PASS  Persistence            15 passed, 0 failed, 0 skipped
-[integration] OK: 102 tests passed in 8.2s
+[integration] OK: 116 tests passed in 9.9s
 ```
 
 `tools/sim.luau` is what makes this possible, and it had to model the Instance
@@ -409,7 +410,18 @@ they are exact.
 Time is virtual: `os.clock`, `os.time` and the whole `task` library run on a
 discrete-event scheduler, so a 25-minute expedition plays out in milliseconds.
 That is what makes the phase clock, the shift schedule, node respawns, autosave
-intervals and the 2-second corpse-destroy delay testable at all. The DataStore
+intervals and the 2-second corpse-destroy delay testable at all.
+
+There is a second clock, and it moves on its own. `advanceWallClock(seconds)`
+pushes `os.time()` forward while `os.clock()` stays put and no timer fires at
+all — hours passing with the server doing nothing. That is the only honest way
+to reach offline production, which exists precisely BECAUSE nothing ran:
+advancing the simulation instead would fire thousands of ONLINE production
+ticks and test the opposite code. The two clocks part company on a real rejoin
+too, where a returning player usually lands on a different server whose
+`os.clock()` started over while epoch time moved on. `rejoin(player)` is the
+other half: the same account back with a new Player object, which is what the
+engine hands you and what a profile is keyed by. The DataStore
 is a real in-memory store with genuine `UpdateAsync` read-modify-write
 semantics, because the session-lock protocol is where several bugs lived.
 
@@ -421,7 +433,7 @@ fidelity. `workspace:Raycast` returns nil, nothing renders, and
 The integration specs are Lune-only. `TestRunner.loadSpecs` walks
 `GetChildren()` and matches `*.spec`, so the `integration` folder — a Folder,
 not a ModuleScript — is skipped on Play. They do ship inside the place file
-(about 190 KB of it) because `src/tests` is mapped whole; they are inert there,
+(about 230 KB of it) because `src/tests` is mapped whole; they are inert there,
 and keeping the Rojo tree simple was judged worth the bytes.
 
 ### `lune run tools/load-check`

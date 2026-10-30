@@ -17,15 +17,15 @@ The toolchain is installed, so these all genuinely ran:
 
 | Check | Command | Result |
 |---|---|---|
-| Rojo builds the place file | `rojo build -o build/BelowZero.rbxlx` | **pass** — 1,180 KB. Rojo validates every `$properties` name and type against its reflection database, so the Lighting, Players and Workspace properties are all real |
-| Luau parses, via a real parser | `selene src` | **0 parse errors** across all 83 files |
+| Rojo builds the place file | `rojo build -o build/BelowZero.rbxlx` | **pass** — 1,213 KB. Rojo validates every `$properties` name and type against its reflection database, so the Lighting, Players and Workspace properties are all real |
+| Luau parses, via a real parser | `selene src` | **0 parse errors** across all 84 files |
 | Static analysis | `selene src` | **0 errors, 0 warnings** |
 | Formatting | `stylua --check src tools` | **clean** (44 files were reformatted to get there) |
 | Unit suite, headless | `lune run tools/run-tests` | **129 passed, 0 failed** in 0.7s |
-| Integration suite, headless | `lune run tools/run-integration` | **102 passed, 0 failed** in 8s — a fresh server booted per test, playing real expeditions. 12 consecutive runs, identical |
+| Integration suite, headless | `lune run tools/run-integration` | **116 passed, 0 failed** in 10s — a fresh server booted per test, playing real expeditions. 10 consecutive runs, identical |
 | Every module loads | `lune run tools/load-check` | **67 of 67 ModuleScripts load** |
-| Every constant reference resolves | `lune run tools/ref-check` | **4,484 references, 0 dangling** — no mistyped enum, route or theme token anywhere |
-| Every cross-service call is real | `lune run tools/call-check` | **315 calls, 0 broken** — no typo'd `self.context.X:method()`, none over-applied |
+| Every constant reference resolves | `lune run tools/ref-check` | **4,563 references, 0 dangling** — no mistyped enum, route or theme token anywhere |
+| Every cross-service call is real | `lune run tools/call-check` | **316 calls, 0 broken** — no typo'd `self.context.X:method()`, none over-applied |
 | Structural check | `node` heuristic over block/bracket balance | **0 problems** |
 
 **What that does and does not mean.** The pure logic is genuinely tested: the
@@ -88,13 +88,14 @@ wrong, which is what the adversarial pass is for.
 
 ### What the simulation found
 
-`tools/sim.luau` (1,300 lines) boots all sixteen services against a modelled
+`tools/sim.luau` (1,389 lines) boots all sixteen services against a modelled
 DataModel: a hand-written Instance tree with working signals, a virtual clock
-driving `os.clock`, `os.time` and all of `task`, and a real in-memory DataStore
-with genuine `UpdateAsync` read-modify-write semantics. 102 tests across 7 spec
-files then play the game through it.
+driving `os.clock`, `os.time` and all of `task`, a second clock that moves
+`os.time()` alone so hours can pass with the server idle, and a real in-memory
+DataStore with genuine `UpdateAsync` read-modify-write semantics. 116 tests
+across 8 spec files then play the game through it.
 
-It found **six bugs**, four of them in code that had already passed static
+It found **eight bugs**, four of them in code that had already passed static
 analysis, a six-dimension semantic review and 129 unit tests:
 
 | Bug | Consequence | Found by |
@@ -105,9 +106,12 @@ analysis, a six-dimension semantic review and 129 unit tests:
 | A member who had already **died** was skipped by the disconnect deposit | Dying and then disconnecting destroyed the haul outright, while dying and waiting out the run kept the death fraction of it. `endSession` cannot make it up afterwards, because the profile leaves with the player | `Death.spec` author, reading the handler |
 | The release cleared `_released[userId]`, the marker that blocks a late write | A read-only session for the player's next server, for the full lock timeout. See above | `Persistence.spec` |
 | `BuildingService:_afterChange` pushed the colony snapshot *before* reassigning workers | After a demolition the client was still told the job usage of a building that was gone, and went on being told it until some later push happened to correct it. Cosmetic, but it reads as a lost worker | `Colony.spec` |
+| The offline notice read out what the colonists *made*, not what storage *took* | `addToStorage` truncates at the colony cap, so a returning player with a full store was told their colonists had produced **5,295 mushrooms when five units fit**. Same class as acknowledging a write that only reached RAM: someone is left counting on resources that are not there | `Offline.spec` |
+| `_settleOffline` settled, and announced, a **read-only** session | `profileLoaded` fires for a read-only entry exactly as for a healthy one. A profile whose migration was refused — a rollback after a schema bump — got up to eight hours of production, a notice saying so, and no write of any of it. It also moved `lastProductionAt` in memory, so the absence was not even owed any more | `Offline.spec` |
 
-All six are fixed, and each has a test that now asserts the **fixed** behaviour
-and fails if it regresses.
+All eight are fixed, and each has a test that now asserts the **fixed**
+behaviour and fails if it regresses. Both of the last two were verified by
+mutation: putting the old code back fails exactly those tests and nothing else.
 
 It also found a defect in the test suite itself, which is worth recording
 because it is the failure mode that makes a harness worse than no harness.
@@ -207,7 +211,7 @@ is the one thing this document cannot claim.
 | Colonists + jobs | ✅ | 7 jobs, slot validation, orphan reassignment with a notice |
 | Production simulation | ✅ | Probabilistic quantisation so fractional output is not lost |
 | Visible colonists | ✅ | Capped at 10/plot, one shared loop, skipped when unobserved |
-| Offline production | ✅ | 8h cap, 50% efficiency, condition floored at 55 |
+| Offline production | ✅ | 8h cap, 50% efficiency, condition floored at 55. Paid once, capped, never into a session that cannot be saved — 14 tests in `Offline.spec` |
 | Crafting | ✅ | Station + level gating, atomic payment, greyed rows with reasons |
 | Colony visiting | ✅ | Walk or jump; directory in the colony panel; always read-only |
 | Research points | 🟡 | Accumulated by Researcher colonists and the lab, but **nothing spends them yet** |
@@ -272,7 +276,7 @@ is the one thing this document cannot claim.
 | Rng spec | ✅ | 15 tests: determinism, ranges, weighting, shuffle correctness |
 | PlotGrid spec | ✅ | 14 tests: round-trips, snapping, bounds, overlap |
 | Module load check | ✅ | `lune run tools/load-check` requires all 67 ModuleScripts. Selene proves code parses; this proves it loads, which is the failure that takes a server down at startup |
-| Simulated server | ✅ | `tools/sim.luau` boots all 16 services against a modelled DataModel: working signals, a virtual clock over `os.clock`/`os.time`/`task`, an in-memory DataStore with real `UpdateAsync` semantics. Lune's own `Instance` could not be used — `@lune/roblox` manipulates place files, so it has no signals and cannot derive `Position` from `CFrame` |
+| Simulated server | ✅ | `tools/sim.luau` boots all 16 services against a modelled DataModel: working signals, a virtual clock over `os.clock`/`os.time`/`task`, a separate wall clock that moves `os.time()` alone so hours can pass with the server idle, `rejoin` for bringing the same account back, and an in-memory DataStore with real `UpdateAsync` semantics. Lune's own `Instance` could not be used — `@lune/roblox` manipulates place files, so it has no signals and cannot derive `Position` from `CFrame` |
 | Expedition spec | ✅ | 16 tests: the key banking regression end to end, re-settle hammering, harvest and depletion, range, cross-session, extraction gating, abandon recovery, per-player loot, world-slot isolation |
 | Monsters spec | ✅ | 16 tests: the Crawler is killable and the Stalker is not, damage-scaled interest loss, no spawns in safe rooms, difficulty scaling, every refusal path, the 1-HP floor, downed immunity |
 | Clock spec | ✅ | 14 tests: prep → day → dusk → night on the configured durations, no phase ending early, one announcement per boundary, the duration contract, the shift schedule and its two warnings, layout validity after every shift, timeout settlement and teardown |
@@ -280,7 +284,8 @@ is the one thing this document cannot claim.
 | Disconnect spec | ✅ | 12 tests: the R8 haul and key banking, mid-load disconnect releasing the lock, party and session teardown, abandon as the contrast case |
 | Persistence spec | ✅ | 15 tests: session locking across two servers sharing one store, the read-only fallback, degradation and recovery, the late-write guard, idempotent receipts, autosave refresh. Tuning constants are matched out of the service's own source rather than hard-coded |
 | Colony spec | ✅ | 16 tests: placement, upgrade, repair, demolition and their exact costs and refunds, grid bounds and overlap, visitor isolation, worker assignment and production, storage atomicity on every refusal |
-| Integration test run | ✅ | `lune run tools/run-integration` runs all 102 in 8s against a fresh server per test; exits non-zero, so it can gate a commit or CI. 12 consecutive runs gave identical results |
+| Offline spec | ✅ | 14 tests: an absence is paid once and only once, capped at 8 hours with the remainder discarded rather than banked, reduced against the same time played, settled before the returning player's first snapshot, reported as what storage took rather than what was made, never granted into a session that cannot be written, and never below the condition floor or short a colonist |
+| Integration test run | ✅ | `lune run tools/run-integration` runs all 116 in 10s against a fresh server per test; exits non-zero, so it can gate a commit or CI. 10 consecutive runs gave identical results |
 | Headless test run | ✅ | `tools/harness.luau` builds a fake instance tree over the real files and supplies the datatypes Lune lacks. `lune run tools/run-tests` runs all 129 in 0.7s; exits non-zero, so it can gate a commit or CI |
 
 ---
@@ -367,15 +372,20 @@ the whole shop feel fake.
 
 ### 5. The gaps the simulation still cannot reach
 
-Done, and it found six bugs — see **What the simulation found** above. What it
+Done, and it found eight bugs — see **What the simulation found** above. What it
 deliberately leaves uncovered, each for a stated reason, is the honest next
 increment:
 
-- **Offline production catch-up.** `_settleOffline` needs `os.time()` to jump
-  between sessions; the virtual clock does not model a gap across a
-  disconnect/reconnect cycle.
-- **Building condition decay and `productionMult`.** Same tick as production, but
-  asserting them needs exact arithmetic over a probabilistic path.
+- **A job that cannot pay its inputs.** `simulate` resolves a job's inputs,
+  checks them, then spends them, so a job that cannot pay spends nothing. That
+  invariant is not reachable from `Offline.spec`: at 50% efficiency every
+  per-tick input quantises below one whole unit, so a job sometimes needs
+  nothing and legitimately works for free. It belongs with online production,
+  where the scale is 1 — and the only job with inputs that is reachable at all
+  is the Cook, which needs a level-2 Farm.
+- **`productionMult`.** Only level-2 buildings carry it, so asserting it means
+  funding an upgrade and then separating an 8% multiplier from a probabilistic
+  path.
 - **The shift rollback branch.** `CaveService` rolls a failed shift back and warns;
   no seed tried produced a shift that failed validation, so the branch is
   unreached without forcing internals.
@@ -385,6 +395,12 @@ increment:
   per test is slow for what it proves.
 - **Recruitment and housing population caps**, and the `craft_iron_pick`
   station-level gate (observed working, not asserted).
+- **Offline skill gain is not scaled**, and that is a balance decision, not a
+  bug to fix quietly. `skillGain` is granted flat per tick while output is
+  halved, so one absence of half an hour takes a worker from skill 1 to the
+  ceiling and the whole shallow curve is skipped. `Offline.spec` pins the
+  invariant — it stops at the ceiling — and records the tension; see open
+  question 5 in [GAME_DESIGN.md](GAME_DESIGN.md).
 - **Anything visual.** `workspace:Raycast` returns nil and nothing renders, so the
   shift tests assert on the *layout* — doors, reachability, validity — not on
   geometry. The spectate overlay and the ability cooldown shade are the two

@@ -378,13 +378,28 @@ function NPCService:simulate(player, ticks, efficiencyScale)
 		+ researchDelta
 		+ (effects.researchPerTick or 0) * ticks
 
-	--[[ Production was already quantised per tick, so these are whole units and
-	     the storage cap is applied by InventoryService. ]]
+	--[[ Production was already quantised per tick, so these are whole units.
+
+	     `produced` is then rewritten to what storage ACTUALLY took.
+	     addToStorage truncates at the colony's capacity, and `produced` is
+	     what the offline notice reads out to the player. Left as the simulated
+	     figure it over-reports by however much the cap refused: Offline.spec
+	     measured a returning player being told their colonists had made 5,295
+	     mushrooms when five units fit. The overflow is still lost — a full
+	     store is the cap doing its job — but it is no longer lost inside a
+	     number the player can check against their own inventory and find
+	     wrong.
+
+	     Writing back into `produced` while iterating it is safe: the keys are
+	     already there and only their values change. ]]
 	local depositedAny = false
 	for resourceId, amount in pairs(produced) do
 		if amount > 0 then
-			self.context.InventoryService:addToStorage(player, resourceId, amount)
-			depositedAny = true
+			local result = self.context.InventoryService:addToStorage(player, resourceId, amount)
+			produced[resourceId] = result.added
+			if result.added > 0 then
+				depositedAny = true
+			end
 		end
 	end
 
@@ -424,6 +439,26 @@ function NPCService:_settleOffline(player)
 	end
 	local profile = self.context.DataService:get(player)
 	if not profile then
+		return
+	end
+
+	--[[ A read-only session is never written back, so settling one would hand
+	     the player up to eight hours of resources, announce them as earned,
+	     and then throw the lot away the moment they left.
+
+	     profileLoaded fires for a read-only entry exactly as it does for a
+	     healthy one — DataService logs "[read-only]" on the line above the
+	     Fire — so nothing upstream of here stops it. A session that was locked
+	     out gets a fresh template and so has no absence to pay for anyway; the
+	     one that does is a profile whose migration was REFUSED, which keeps the
+	     real stored data and the real lastProductionAt.
+
+	     Skipping also leaves lastProductionAt alone, so the absence is still
+	     owed and is paid in full by the next session that can actually bank it.
+	     ColonyService already tells the client the session is read-only, so
+	     there is nothing to announce from here. ]]
+	if self.context.DataService:isReadOnly(player) then
+		log:info("not settling offline production for %s: this session is read-only", player.Name)
 		return
 	end
 

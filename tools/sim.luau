@@ -475,6 +475,8 @@ local function newScheduler()
 	local scheduler = {
 		now = SIM_START_CLOCK,
 		epoch = 1700000000,
+		--[[ Added to epoch time only; see jumpWallClock. ]]
+		wallOffset = 0,
 		timers = {},
 		deferred = {},
 		seq = 0,
@@ -485,7 +487,29 @@ local function newScheduler()
 	end
 
 	function scheduler.time()
-		return scheduler.epoch + math.floor(scheduler.now)
+		return scheduler.epoch + scheduler.wallOffset + math.floor(scheduler.now)
+	end
+
+	--[[ Move the WALL CLOCK forward without running the simulation: os.time()
+	     jumps, os.clock() does not, and not one timer fires.
+
+	     This models the gap across a disconnect — the hours a player is away,
+	     during which this server does nothing for them. It is the only honest
+	     way to reach offline production, which exists precisely BECAUSE
+	     nothing ran: advancing the simulation instead would fire thousands of
+	     online production ticks and so test the opposite code path.
+
+	     Decoupling the two clocks is not a cheat. On a real server os.clock()
+	     is process uptime while os.time() is epoch time, and a player who
+	     comes back after eight hours almost always lands on a DIFFERENT
+	     server whose os.clock() started over while epoch time moved on.
+
+	     Use it only for time in which this server was genuinely idle for the
+	     player. A test that wants the server to WORK has to advance() and pay
+	     for the ticks. ]]
+	function scheduler.jumpWallClock(seconds)
+		scheduler.wallOffset += math.max(0, seconds or 0)
+		return scheduler.time()
 	end
 
 	local function schedule(at, thread)
@@ -672,10 +696,16 @@ end
 --[[
 	Create a fresh simulated server.
 
-	@param options { verbose = boolean, seed = number }
+	@param options { verbose = boolean, seed = number, jobId = string,
+	                 wallClockOffset = number }
+
+	`wallClockOffset` starts this server's os.time() that many seconds ahead of
+	the baseline epoch, which is how a test boots the server a player rejoins
+	hours later. os.clock() is unaffected — see scheduler.jumpWallClock.
+
 	@return instance with:
 		services        the booted service table, by name
-		addPlayer(name) -> fake player
+		addPlayer(name, userId) -> fake player
 		invoke(player, route, payload) -> result     (a Request route)
 		send(player, route, payload)                 (an Event route)
 		pushes(player, route) -> { payload, ... }     (what the server pushed)
@@ -684,6 +714,9 @@ end
 		step(dt)        advance time by dt and fire one Heartbeat
 		advance(seconds, dt)  repeated steps
 		disconnect(player)
+		rejoin(player) -> fake player   same account, new Player object
+		wallClock() -> os.time() as the services see it
+		advanceWallClock(seconds)  epoch time only; no timers fire
 		shutdown()
 		errors          { string, ... } anything a handler threw
 ]]
@@ -699,6 +732,7 @@ function sim.new(options)
 	end
 
 	local scheduler = newScheduler()
+	scheduler.wallOffset = math.max(0, options.wallClockOffset or 0)
 	local server = { errors = errors, scheduler = scheduler, options = options }
 
 	-- ── Services ───────────────────────────────────────────────────────────
@@ -1108,13 +1142,25 @@ function sim.new(options)
 		return character
 	end
 
-	function server.addPlayer(name)
-		nextUserId += 1
+	--[[ `userId` is optional. Passing one brings the SAME ACCOUNT back, which
+	     is what a profile is keyed by and therefore what server.rejoin needs;
+	     without it a fresh id is minted as before. ]]
+	function server.addPlayer(name, userId)
+		if userId then
+			--[[ Keep the counter ahead of any explicit id, so a later
+			     addPlayer() cannot mint a duplicate. ]]
+			nextUserId = math.max(nextUserId, userId)
+		else
+			nextUserId += 1
+			userId = nextUserId
+		end
+
+		local fallbackName = "Player" .. userId
 		local player
 		player = {
-			Name = name or ("Player" .. nextUserId),
-			DisplayName = name or ("Player" .. nextUserId),
-			UserId = nextUserId,
+			Name = name or fallbackName,
+			DisplayName = name or fallbackName,
+			UserId = userId,
 			Parent = playersService,
 			Character = nil,
 			RespawnLocation = nil,
@@ -1149,6 +1195,28 @@ function sim.new(options)
 		player.Parent = nil
 		playerRemoving:Fire(player)
 		scheduler.drainDeferred()
+	end
+
+	--[[ The same account coming back: a BRAND NEW Player object carrying the
+	     old UserId, which is what the engine hands you on a rejoin. Reusing
+	     the departed object instead would let a test pass on state the real
+	     engine would have thrown away — a Character still attached, a Parent
+	     still set — so it is deliberately not that.
+
+	     A player who never left is an error rather than a second copy of
+	     themselves, because two Players on one UserId is a situation the
+	     engine cannot produce and the services are not written for. ]]
+	function server.rejoin(player)
+		if table.find(players, player) then
+			error(
+				("[sim] %s (%d) is still connected; disconnect before rejoining"):format(
+					tostring(player.Name),
+					player.UserId
+				),
+				2
+			)
+		end
+		return server.addPlayer(player.Name, player.UserId)
 	end
 
 	-- ── Driving ────────────────────────────────────────────────────────────
@@ -1287,6 +1355,18 @@ function sim.new(options)
 
 	function server.now()
 		return scheduler.now
+	end
+
+	--[[ Epoch time as the services see it. Everything PERSISTED is stamped
+	     with this: lock timestamps, lastSeenAt, lastProductionAt. ]]
+	function server.wallClock()
+		return scheduler.time()
+	end
+
+	--[[ Hours pass; this server does nothing. See scheduler.jumpWallClock for
+	     what that does and does not model. ]]
+	function server.advanceWallClock(seconds)
+		return scheduler.jumpWallClock(seconds)
 	end
 
 	--[[ Fail a test loudly if the server logged an internal error. A green

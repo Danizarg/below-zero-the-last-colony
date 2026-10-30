@@ -282,9 +282,15 @@ would make early colonists feel worthless.
 - Condition decays at 1.5/hour but is **floored at 55**.
 
 The cap and the efficiency penalty together mean logging off is never the optimal
-strategy. The floor means a colony can never be lost to absence, which the brief
-requires explicitly. Starvation costs condition, never colonists — losing a
-worker to a missed login is the kind of punishment that makes people quit.
+strategy **for resources**. The floor means a colony can never be lost to
+absence, which the brief requires explicitly. Starvation costs condition, never
+colonists — losing a worker to a missed login is the kind of punishment that
+makes people quit.
+
+For **skill** it is not true, and the code is what it is rather than what this
+paragraph used to claim: `skillGain` is granted flat per tick and is not touched
+by the 50% scale, so half an hour of absence takes a colonist from 1 to the
+ceiling. See open question 5.
 
 ---
 
@@ -620,6 +626,13 @@ the current value:
    Hard?** The design says no role should be required; Hard's 1.5× monster damage
    may quietly contradict that.
 5. **Is 50% offline efficiency too high?** If players optimise by logging off, it
-   is.
+   is. And for colonist **skill** the answer is already yes, because the 50%
+   does not apply to it: `skillGain` is flat per tick, so an absence trains a
+   worker exactly as fast as being there would and the 30-minute curve from
+   skill 1 to skill 10 is skipped by one overnight. Scaling `skillGain` by
+   `efficiencyScale` is a one-line change in `NPCService:simulate`; it is a
+   progression decision rather than a correctness fix, so it has deliberately
+   not been made. `Offline.spec` asserts the invariant that holds either way —
+   skill stops at the ceiling.
 6. **Is the 10-second production tick too coarse?** It makes the resource strip
    jump rather than tick.

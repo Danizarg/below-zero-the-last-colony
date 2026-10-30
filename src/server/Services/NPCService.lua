@@ -286,6 +286,7 @@ function NPCService:simulate(player, ticks, efficiencyScale)
 	local rng = self._rng
 	local produced = {}
 	local consumedShort = false
+	local spentAny = false
 	local foodDelta = 0
 	local researchDelta = 0
 	local conditionRepair = 0
@@ -330,6 +331,7 @@ function NPCService:simulate(player, ticks, efficiencyScale)
 					for resourceId, units in pairs(toSpend) do
 						local remaining = (storage.items[resourceId] or 0) - units
 						storage.items[resourceId] = remaining > 0 and remaining or nil
+						spentAny = true
 					end
 
 					for resourceId, perTick in pairs(job.produces or {}) do
@@ -401,6 +403,28 @@ function NPCService:simulate(player, ticks, efficiencyScale)
 				depositedAny = true
 			end
 		end
+	end
+
+	--[[ A tick that only SPENT has moved storage without pushing it. The spend
+	     above writes `storage.items` directly rather than going through
+	     InventoryService:spendFromStorage — the affordability check is already
+	     resolved into `toSpend`, and routing it back through `Inventory.pay`
+	     would redo that check and push once per job per tick instead of once
+	     per tick. But that leaves the deposit loop's addToStorage as the only
+	     push in here, and it is guarded on `result.added > 0`, while the
+	     colony snapshot the online tick sends afterwards carries no storage at
+	     all. So a Cook eating the larder down showed the player nothing: the
+	     resource strip, the units line and `recipes[].available` all kept
+	     their last-pushed values, and the Craft button stayed enabled for a
+	     recipe the server would refuse.
+
+	     One push covers the whole tick. `depositedAny` is the right guard
+	     because every spend happens inside the tick loop and every deposit
+	     after it, so a push from the deposit loop has already carried the
+	     post-spend state — which keeps a normally staffed colony at exactly
+	     the traffic it had before. ]]
+	if spentAny and not depositedAny then
+		self.context.InventoryService:pushStorage(player)
 	end
 
 	profile.colony.lastProductionAt = os.time()

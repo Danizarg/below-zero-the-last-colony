@@ -116,7 +116,19 @@ local function renderOverview(shell, store, container)
 			value = ("%d / %d"):format(colony.population or 0, colony.populationCap or 0),
 		},
 		{ label = "Food stored", value = tostring(math.floor(colony.food or 0)) },
-		{ label = "Food per tick", value = ("%+.1f"):format(colony.foodPerTick or 0) },
+		--[[ `foodPerTick` is the snapshot's buildings-only figure — the sum of
+		     every building's `foodPerTick` scaled by its health, and nothing
+		     else (ColonyService:snapshot, BuildingService:effectsFor). The
+		     colony's actual food rate is that plus what working Cooks add and
+		     minus what every colonist eats, idlers included, so the two can
+		     disagree in SIGN: a Farm at level 1 under a Farmer, a Guard and an
+		     idler grows 3 a tick and loses 3.1. Labelled "Food per tick" with
+		     a signed format it read as a net rate, and a colony quietly
+		     running its larder down looked as if it fed itself. The label now
+		     says which number this is; the net rate is not computed anywhere
+		     outside the production tick, so there is nothing honest to print
+		     in its place. ]]
+		{ label = "Food grown / tick", value = ("%.1f"):format(colony.foodPerTick or 0) },
 		{
 			label = "Condition",
 			value = ("%d%%"):format(math.floor(colony.condition or 100)),

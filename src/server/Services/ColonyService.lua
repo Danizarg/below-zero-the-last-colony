@@ -240,6 +240,7 @@ function ColonyService:sendHome(player)
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if root then
 		root.CFrame = CFrame.new(ColonyBuilder.plotSpawnPosition(index) + Vector3.new(0, 3, 0))
+		self.context.SurvivalService:forgetFall(player)
 	end
 
 	self:pushColony(player)
@@ -264,6 +265,7 @@ function ColonyService:visit(player, targetUserId)
 	end
 
 	root.CFrame = CFrame.new(ColonyBuilder.plotSpawnPosition(index) + Vector3.new(0, 3, 0))
+	self.context.SurvivalService:forgetFall(player)
 	return { ok = true, plotIndex = index, canManage = (self:canManage(player, index)) }
 end
 

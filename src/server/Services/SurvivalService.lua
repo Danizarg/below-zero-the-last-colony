@@ -597,6 +597,19 @@ function SurvivalService:_tickStats(deltaTime)
 	end
 end
 
+--[[ A teleport is not a fall. The tracker below remembers the highest Y seen
+     while airborne and charges for the drop on landing, so a body moved by
+     the server — into the cave, home to the colony, back to the entrance on
+     a rescue — must not pay for the height difference between the two
+     places. The first expedition anyone started in Studio arrived a thousand
+     studs "below" a hop taken at the cave mouth and was downed on the spot.
+     Every site that sets a HumanoidRootPart CFrame calls this right after;
+     if the body is still airborne on arrival the next tick starts a fresh
+     peak from where it actually is. ]]
+function SurvivalService:forgetFall(player)
+	self._fallTracking[player.UserId] = nil
+end
+
 --[[ Fall damage, tracked from the peak of a fall rather than from velocity, so
      the number the player takes matches the height they can see they fell. ]]
 function SurvivalService:_trackFalls()

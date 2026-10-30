@@ -349,6 +349,7 @@ function ExpeditionService:_sendIntoCave(player, session)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if root and spawnPoint then
 		root.CFrame = CFrame.new(spawnPoint)
+		self.context.SurvivalService:forgetFall(player)
 	end
 
 	local cave = self.context.CaveService:caveFor(session.id)
@@ -757,6 +758,7 @@ function ExpeditionService:requestRescue(player, paid)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if root and spawnPoint then
 		root.CFrame = CFrame.new(spawnPoint)
+		self.context.SurvivalService:forgetFall(player)
 	end
 	self.context.CaveService:bindPlayer(player, session.id)
 	self.context.ColonyService:setZone(player, Enums.Zone.Expedition)

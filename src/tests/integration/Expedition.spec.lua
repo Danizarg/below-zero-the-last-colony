@@ -92,6 +92,52 @@ return function(suite, context)
 
 	-- ── The run starts at all ────────────────────────────────────────────────
 
+	suite:test("entering the cave is not a fall", function(expect)
+		--[[ Fall damage is charged from the highest Y seen while airborne to the Y
+		     on landing. The cave is a thousand studs below the colony, so a hop
+		     at the cave mouth — a Freefall tick with the colony's height on
+		     record — followed by the teleport down read as a fall from the colony
+		     to the cave floor. The first expedition started in Studio was downed
+		     on arrival. The teleport now forgets the tracked fall. ]]
+		local server = newServer()
+		local Routes = server.require(server.shared.Routes)
+		local GameConfig = server.require(server.shared.Config.GameConfig)
+		local Enum = context.roblox.Enum
+		local Survival = server.services.SurvivalService
+
+		local player = server.addPlayer("Alice")
+		local character = player.Character
+		expect.truthy(character, "no body in the colony")
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local root = character.PrimaryPart
+		local colonyY = root.Position.Y
+
+		--[[ A hop at the cave mouth: airborne for a stat tick, so the tracker
+		     has the colony's height on record when the teleport happens. ]]
+		humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+		server.advance(1, 0.25)
+
+		local started =
+			server.invoke(player, Routes.Request.StartExpedition, { difficultyId = "easy", seed = SEED })
+		expect.truthy(started.ok, "could not start the expedition: " .. tostring(started.reason))
+		expect.truthy(
+			colonyY - root.Position.Y > GameConfig.Survival.FallDamageMinHeight,
+			"the cave entrance is not far enough below the colony for a stale peak to hurt, so this test proves nothing"
+		)
+
+		-- Landed, and the tracker gets its tick.
+		humanoid:ChangeState(Enum.HumanoidStateType.Running)
+		server.advance(1, 0.25)
+
+		expect.falsy(
+			Survival:isDowned(player),
+			"the teleport into the cave was charged as a fall and downed the player on arrival"
+		)
+		expect.equal(humanoid.Health, humanoid.MaxHealth, "arriving in the cave cost health")
+		expect.equal(#Survival:statsOf(player).damageLog, 0, "a damage entry was logged for the teleport")
+		server.assertNoErrors(expect, "cave entry")
+	end)
+
 	suite:test("a read-only session cannot start an expedition", function(expect)
 		--[[ An expedition settles into the profile: XP, levels, role mastery, the
 		     haul, banked keys. A read-only session is never written, so letting it
